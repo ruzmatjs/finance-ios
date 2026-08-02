@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Finance — Shaxsiy moliya</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#ffffff; --text:#1c1c1e; --text2:#8e8e93;
+    --sep:#e5e5ea; --accent:#5e5ce6; --accent2:#0a84ff;
+    --income:#34c759; --expense:#ff3b30; --transfer:#0a84ff; --warn:#ff9500;
+    --radius:18px; --shadow:0 4px 16px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#000000; --card:#1c1c1e; --text:#ffffff; --text2:#98989f;
+           --sep:#2c2c2e; --shadow:0 4px 16px rgba(0,0,0,.4); }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg); color:var(--text); overscroll-behavior:none;
+       padding-bottom:96px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:600px; margin:0 auto; padding:16px}
+  h1{font-size:26px; font-weight:800; margin:8px 0 16px}
+  h2{font-size:17px; font-weight:700; margin:0}
+  .muted{color:var(--text2)}
+  .card{background:var(--card); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); margin-bottom:14px}
+  .row{display:flex; align-items:center; gap:12px}
+  .between{display:flex; align-items:center; justify-content:space-between}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .mono{font-variant-numeric:tabular-nums}
+
+  /* Balans header */
+  .hero{background:linear-gradient(135deg,#5e5ce6,#0a84ff); color:#fff; border-radius:24px;
+        padding:22px; box-shadow:0 10px 26px rgba(94,92,230,.35); margin-bottom:14px}
+  .hero .lbl{opacity:.85; font-size:14px; font-weight:600}
+  .hero .amt{font-size:36px; font-weight:800; margin:6px 0; letter-spacing:-.5px}
+  .hero .sub{font-size:13px; font-weight:600; opacity:.95}
+
+  /* Stat cards */
+  .stat .ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .stat .t{font-size:12px;color:var(--text2);margin:8px 0 2px}
+  .stat .v{font-size:19px;font-weight:800}
+
+  /* Icon circle */
+  .cic{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+
+  /* Transaction row */
+  .tx{padding:10px 0; border-bottom:1px solid var(--sep)}
+  .tx:last-child{border-bottom:none}
+  .tx .name{font-weight:600}
+  .tx .meta{font-size:12px;color:var(--text2)}
+  .tx .amt{font-weight:700; font-variant-numeric:tabular-nums}
+
+  /* Tab bar */
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--sep);
+          display:flex;justify-content:space-around;padding:8px 0 26px;z-index:20}
+  .tabbar button{background:none;border:none;color:var(--text2);font-size:11px;display:flex;
+                 flex-direction:column;align-items:center;gap:3px;flex:1;cursor:pointer}
+  .tabbar button .ti{font-size:20px}
+  .tabbar button.active{color:var(--accent)}
+
+  /* FAB */
+  .fab{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);width:58px;height:58px;border-radius:50%;
+       background:linear-gradient(180deg,#5e5ce6,#0a84ff);color:#fff;border:none;font-size:30px;
+       box-shadow:0 8px 20px rgba(10,132,255,.45);z-index:25;cursor:pointer;line-height:1}
+
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:none;align-items:flex-end}
+  .modal.show{display:flex}
+  .sheet{background:var(--bg);width:100%;max-width:600px;margin:0 auto;border-radius:22px 22px 0 0;
+         padding:18px;max-height:92vh;overflow-y:auto;animation:up .25s ease}
+  @keyframes up{from{transform:translateY(30px);opacity:.5}to{transform:translateY(0);opacity:1}}
+  .seg{display:flex;background:var(--sep);border-radius:12px;padding:3px;margin:12px 0}
+  .seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;color:var(--text2);cursor:pointer}
+  .seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  input,textarea{width:100%;border:none;background:var(--card);border-radius:12px;padding:13px;
+                 font-size:16px;color:var(--text);margin-top:8px;font-family:inherit}
+  input:focus,textarea:focus{outline:2px solid var(--accent)}
+  .amtinput{font-size:34px;font-weight:800;text-align:center}
+  .cats{display:flex;gap:10px;overflow-x:auto;padding:10px 0;scrollbar-width:none}
+  .cats::-webkit-scrollbar{display:none}
+  .catbtn{flex-shrink:0;width:70px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;opacity:.55;transition:.15s}
+  .catbtn.on{opacity:1;transform:scale(1.05)}
+  .catbtn .lbl{font-size:11px;text-align:center}
+  .btn{width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:700;
+       background:linear-gradient(180deg,#5e5ce6,#0a84ff);color:#fff;margin-top:14px;cursor:pointer}
+  .btn.ghost{background:var(--sep);color:var(--text)}
+  .hint{font-size:12px;color:var(--text2);margin-top:6px}
+  .ai{display:flex;gap:8px;align-items:center;background:var(--card);border-radius:12px;padding:4px 4px 4px 12px;margin-top:8px}
+  .ai input{margin:0;background:none;padding:9px 0}
+  .ai button{border:none;background:var(--accent);color:#fff;border-radius:9px;padding:9px 12px;font-weight:600;cursor:pointer}
+
+  /* Empty */
+  .empty{text-align:center;padding:40px 20px;color:var(--text2)}
+  .empty .e{font-size:46px;margin-bottom:10px}
+
+  /* Bars & donut */
+  .bars{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:10px}
+  .bars .b{flex:1;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:6px 6px 0 0;min-height:3px;position:relative}
+  .bars .bl{font-size:10px;color:var(--text2);text-align:center;margin-top:4px}
+  .legend{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .legend .li{display:flex;align-items:center;gap:8px;font-size:14px}
+  .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .pct{margin-left:auto;color:var(--text2);font-size:13px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<button class="fab" onclick="openAdd()">+</button>
+
+<div class="tabbar">
+  <button data-tab="home" class="active" onclick="go('home')"><span class="ti">🏠</span>Asosiy</button>
+  <button data-tab="list" onclick="go('list')"><span class="ti">📃</span>Tranzaksiya</button>
+  <button data-tab="report" onclick="go('report')"><span class="ti">📊</span>Hisobot</button>
+  <button data-tab="settings" onclick="go('settings')"><span class="ti">⚙️</span>Sozlama</button>
+</div>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+// ================= Telegram integratsiyasi =================
+const TG = window.Telegram?.WebApp;
+if (TG){ TG.ready(); TG.expand(); try{ TG.setHeaderColor('bg_color'); }catch(e){} }
+function haptic(t='light'){ try{ TG?.HapticFeedback?.impactOccurred(t); }catch(e){} }
+function notify(t='success'){ try{ TG?.HapticFeedback?.notificationOccurred(t); }catch(e){} }
+
+// ================= Kategoriyalar =================
+const CATS = [
+  // Daromad
+  {n:'Maosh', e:'💰', c:'#34c759', t:'income'},
+  {n:'Bonus', e:'🎁', c:'#30d158', t:'income'},
+  {n:'Frilans', e:'💻', c:'#00c7be', t:'income'},
+  {n:'Investitsiya', e:'📈', c:'#32ade6', t:'income'},
+  {n:'Sovgʼa', e:'🎀', c:'#af52de', t:'income'},
+  {n:'Boshqa', e:'➕', c:'#8e8e93', t:'income'},
+  // Xarajat
+  {n:'Ovqat', e:'🍔', c:'#ff9500', t:'expense'},
+  {n:'Kafe', e:'☕', c:'#ff9f0a', t:'expense'},
+  {n:'Restoran', e:'🍽️', c:'#ff375f', t:'expense'},
+  {n:'Transport', e:'🚌', c:'#0a84ff', t:'expense'},
+  {n:'Taksi', e:'🚕', c:'#ffd60a', t:'expense'},
+  {n:'Yoqilgʼi', e:'⛽', c:'#ff453a', t:'expense'},
+  {n:'Xarid', e:'🛍️', c:'#ff2d55', t:'expense'},
+  {n:'Kiyim', e:'👕', c:'#bf5af2', t:'expense'},
+  {n:'Texnika', e:'📱', c:'#5856d6', t:'expense'},
+  {n:'Koʾngilochar', e:'🎮', c:'#af52de', t:'expense'},
+  {n:'Salomatlik', e:'❤️', c:'#ff3b30', t:'expense'},
+  {n:'Dorixona', e:'💊', c:'#ff6482', t:'expense'},
+  {n:'Sport', e:'🏋️', c:'#30d158', t:'expense'},
+  {n:'Sayohat', e:'✈️', c:'#64d2ff', t:'expense'},
+  {n:'Kommunal', e:'💡', c:'#ffcc00', t:'expense'},
+  {n:'Internet', e:'🌐', c:'#0a84ff', t:'expense'},
+  {n:'Aloqa', e:'📶', c:'#30b0c7', t:'expense'},
+  {n:'Ijara', e:'🏠', c:'#ff9f0a', t:'expense'},
+  {n:'Boshqa', e:'📦', c:'#8e8e93', t:'expense'},
+];
+const catBy = (n,t)=> CATS.find(c=>c.n===n && (!t||c.t===t)) || CATS.find(c=>c.n===n);
+
+// ================= Holat (localStorage) =================
+let state = load() || { tx:[], currency:'UZS' };
+function load(){ try{ return JSON.parse(localStorage.getItem('finance.v1')); }catch(e){ return null; } }
+function save(){ localStorage.setItem('finance.v1', JSON.stringify(state)); }
+
+// ================= Formatlash =================
+const SYM = {UZS:'soʼm', USD:'$', EUR:'€', RUB:'₽'};
+function fmt(a){
+  const s = SYM[state.currency]||state.currency;
+  const n = Math.round(Math.abs(a)).toLocaleString('ru-RU').replace(/,/g,' ');
+  return n + ' ' + s;
+}
+function fmtSigned(a){ return (a>0?'+':a<0?'−':'') + fmt(a); }
+function compact(a){
+  const s = SYM[state.currency]||state.currency; const x=Math.abs(a);
+  if(x>=1e6) return (a/1e6).toFixed(1).replace('.0','')+'M '+s;
+  if(x>=1e3) return Math.round(a/1e3)+'K '+s;
+  return fmt(a);
+}
+
+// ================= NL parser ("Taksi 35000") =================
+const KW = {
+  taksi:['Taksi','expense'], taxi:['Taksi','expense'], ovqat:['Ovqat','expense'], food:['Ovqat','expense'],
+  kafe:['Kafe','expense'], cafe:['Kafe','expense'], kofe:['Kafe','expense'], restoran:['Restoran','expense'],
+  benzin:['Yoqilgʼi','expense'], yoqilgi:['Yoqilgʼi','expense'], xarid:['Xarid','expense'],
+  kiyim:['Kiyim','expense'], dori:['Dorixona','expense'], sport:['Sport','expense'], internet:['Internet','expense'],
+  aloqa:['Aloqa','expense'], ijara:['Ijara','expense'], sayohat:['Sayohat','expense'],
+  maosh:['Maosh','income'], salary:['Maosh','income'], bonus:['Bonus','income'], frilans:['Frilans','income'],
+  sovga:['Sovgʼa','income'], sovgi:['Sovgʼa','income']
+};
+function parseNL(txt){
+  const s = txt.toLowerCase();
+  let amount = 0;
+  const km = s.match(/(\d+(?:[.,]\d+)?)\s*(mln|m|ming|k)\b/);
+  if(km){ let v=parseFloat(km[1].replace(',','.')); amount = /m/.test(km[2])?v*1e6:v*1e3; }
+  else { const d=s.replace(/[^\d]/g,''); amount = parseInt(d)||0; }
+  if(!amount) return null;
+  let type='expense', cat=null;
+  for(const k in KW){ if(s.includes(k)){ cat=KW[k][0]; type=KW[k][1]; break; } }
+  return {amount, type, cat};
+}
+
+// ================= Hisob-kitob =================
+const now = ()=> new Date();
+function monthStart(){ const d=now(); return new Date(d.getFullYear(),d.getMonth(),1); }
+function signed(t){ return t.type==='income'? t.amount : t.type==='expense'? -t.amount : 0; }
+function total(){ return state.tx.reduce((s,t)=>s+signed(t),0); }
+function monthly(type){
+  const ms = monthStart().getTime();
+  return state.tx.filter(t=>t.type===type && new Date(t.date).getTime()>=ms)
+                 .reduce((s,t)=>s+t.amount,0);
+}
+function todayChange(){
+  const d=now(); const k=d.toDateString();
+  return state.tx.filter(t=>new Date(t.date).toDateString()===k).reduce((s,t)=>s+signed(t),0);
+}
+
+// ================= Navigatsiya =================
+let tab='home';
+function go(t){
+  tab=t;
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active', b.dataset.tab===t));
+  render(); haptic();
+}
+function render(){
+  const el=document.getElementById('app');
+  if(tab==='home') el.innerHTML=viewHome();
+  else if(tab==='list') el.innerHTML=viewList();
+  else if(tab==='report') el.innerHTML=viewReport();
+  else if(tab==='settings') el.innerHTML=viewSettings();
+  window.scrollTo(0,0);
+}
+
+// ================= Koʼrinishlar =================
+function viewHome(){
+  const inc=monthly('income'), exp=monthly('expense');
+  const recent=[...state.tx].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
+  return `
+  <h1>Salom 👋</h1>
+  <div class="hero">
+    <div class="lbl">Umumiy balans</div>
+    <div class="amt mono">${fmt(total())}</div>
+    <div class="sub">${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun</div>
+  </div>
+  <div class="grid2">
+    ${stat('Oylik daromad', compact(inc), '⬇️', 'var(--income)')}
+    ${stat('Oylik xarajat', compact(exp), '⬆️', 'var(--expense)')}
+    ${stat('Jamgʼarma', compact(inc-exp), '💵', 'var(--transfer)')}
+    ${stat('Bugun', compact(todayChange()), '☀️', 'var(--warn)')}
+  </div>
+  ${weeklyChart()}
+  <div class="card">
+    <div class="between" style="margin-bottom:8px"><h2>Soʼnggi tranzaksiyalar</h2>
+      <span class="muted" style="font-size:14px" onclick="go('list')">Barchasi ›</span></div>
+    ${recent.length? recent.map(txRow).join('') : emptyMini('Hozircha boʼsh')}
+  </div>`;
+}
+function stat(t,v,e,col){
+  return `<div class="card stat">
+    <div class="ic" style="background:${col}22;color:${col}">${e}</div>
+    <div class="t">${t}</div><div class="v mono">${v}</div></div>`;
+}
+function weeklyChart(){
+  const days=[]; const d=now();
+  for(let i=6;i>=0;i--){ const dd=new Date(d); dd.setDate(d.getDate()-i);
+    const sum=state.tx.filter(t=>t.type==='expense'&&new Date(t.date).toDateString()===dd.toDateString())
+                      .reduce((s,t)=>s+t.amount,0);
+    days.push({d:dd, sum}); }
+  const max=Math.max(...days.map(x=>x.sum),1);
+  const wd=['Ya','Du','Se','Ch','Pa','Ju','Sh'];
+  return `<div class="card"><h2>Haftalik sarf</h2>
+    <div class="bars">${days.map(x=>`<div class="b" style="height:${Math.max(x.sum/max*100,2)}%"></div>`).join('')}</div>
+    <div class="row" style="gap:6px">${days.map(x=>`<div class="bl" style="flex:1">${wd[x.d.getDay()]}</div>`).join('')}</div>
+  </div>`;
+}
+function txRow(t){
+  const c=catBy(t.cat,t.type)||{e:'💸',c:'#8e8e93'};
+  const col=t.type==='income'?'var(--income)':t.type==='expense'?'var(--expense)':'var(--transfer)';
+  const sign=t.type==='income'?'+':t.type==='expense'?'−':'';
+  const date=new Date(t.date);
+  const dstr = date.toDateString()===new Date().toDateString()?'Bugun':
+    date.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+  return `<div class="tx row">
+    <div class="cic" style="background:${c.c}22">${c.e}</div>
+    <div style="flex:1;min-width:0">
+      <div class="name">${esc(t.merchant||t.cat||'—')}</div>
+      <div class="meta">${dstr}${t.note?' · '+esc(t.note):''}</div>
+    </div>
+    <div class="amt mono" style="color:${col}">${sign}${fmt(t.amount)}</div>
+  </div>`;
+}
+function viewList(){
+  const list=[...state.tx].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!list.length) return `<h1>Tranzaksiyalar</h1>${emptyBig('📭','Hozircha tranzaksiya yoʼq','Pastdagi + tugma orqali qoʼshing')}`;
+  // Kunlar boʼyicha guruh
+  const groups={};
+  list.forEach(t=>{ const k=new Date(t.date).toDateString(); (groups[k]=groups[k]||[]).push(t); });
+  let html=`<h1>Tranzaksiyalar</h1>`;
+  for(const k in groups){
+    const d=new Date(k);
+    html+=`<div class="card"><div class="muted" style="font-size:13px;font-weight:600;margin-bottom:6px">
+      ${d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div>
+      ${groups[k].map(t=>`<div onclick="delTx('${t.id}')">${txRow(t)}</div>`).join('')}</div>`;
+  }
+  html+=`<div class="hint" style="text-align:center">Oʼchirish uchun tranzaksiyani bosing</div>`;
+  return html;
+}
+function viewReport(){
+  const ms=monthStart().getTime();
+  const exp=state.tx.filter(t=>t.type==='expense'&&new Date(t.date).getTime()>=ms);
+  const totalExp=exp.reduce((s,t)=>s+t.amount,0);
+  const byCat={};
+  exp.forEach(t=>{ byCat[t.cat]=(byCat[t.cat]||0)+t.amount; });
+  const arr=Object.entries(byCat).map(([n,v])=>({n,v,c:(catBy(n)||{c:'#8e8e93'}).c})).sort((a,b)=>b.v-a.v);
+  let html=`<h1>Hisobot</h1><div class="muted" style="margin:-8px 0 14px">Joriy oy · xarajatlar</div>`;
+  if(!arr.length) return html+emptyBig('📊','Maʼlumot yoʼq','Bu oy uchun xarajat kiritilmagan');
+  html+=`<div class="card">${donut(arr,totalExp)}
+    <div class="legend">${arr.slice(0,8).map(x=>`<div class="li">
+      <span class="dot" style="background:${x.c}"></span>${x.n}
+      <span class="pct">${Math.round(x.v/totalExp*100)}% · ${compact(x.v)}</span></div>`).join('')}</div></div>`;
+  return html;
+}
+function donut(arr,tot){
+  const R=52,C=2*Math.PI*R; let off=0;
+  const segs=arr.map(x=>{ const len=x.v/tot*C; const s=`<circle r="${R}" cx="70" cy="70" fill="none"
+    stroke="${x.c}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}"
+    transform="rotate(-90 70 70)"/>`; off+=len; return s; }).join('');
+  return `<svg viewBox="0 0 140 140" width="160" height="160" style="display:block;margin:0 auto">
+    ${segs}<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--text2)">Jami</text>
+    <text x="70" y="84" text-anchor="middle" font-size="14" font-weight="800" fill="var(--text)">${compact(tot)}</text></svg>`;
+}
+function viewSettings(){
+  return `<h1>Sozlamalar</h1>
+  <div class="card">
+    <div class="between" style="margin-bottom:12px"><h2>Valyuta</h2></div>
+    <div class="seg">${Object.keys(SYM).map(c=>`<button class="${state.currency===c?'on':''}"
+      onclick="setCur('${c}')">${c}</button>`).join('')}</div>
+  </div>
+  <div class="card">
+    <div class="between"><span>Jami tranzaksiya</span><b>${state.tx.length}</b></div>
+  </div>
+  <div class="card">
+    <button class="btn ghost" onclick="exportCSV()">📄 CSV eksport</button>
+    <button class="btn" style="background:var(--expense);margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
+  </div>
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada (brauzer xotirasida) saqlanadi.<br>Finance Mini App · v1.0</div>`;
+}
+function emptyMini(t){ return `<div class="empty"><div style="font-size:30px">📭</div>${t}</div>`; }
+function emptyBig(e,t,m){ return `<div class="empty card"><div class="e">${e}</div><h2>${t}</h2><div style="margin-top:6px">${m}</div></div>`; }
+
+// ================= Qoʼshish oynasi =================
+let form={type:'expense', cat:null, amount:''};
+function openAdd(){
+  form={type:'expense', cat:null, amount:''};
+  document.getElementById('sheet').innerHTML=addSheet();
+  document.getElementById('modal').classList.add('show');
+  haptic('medium');
+}
+function closeAdd(){ document.getElementById('modal').classList.remove('show'); }
+function addSheet(){
+  return `<div class="between"><h2>Yangi tranzaksiya</h2><span onclick="closeAdd()" style="font-size:22px;color:var(--text2)">✕</span></div>
+  <div class="seg">
+    <button class="${form.type==='expense'?'on':''}" onclick="setType('expense')">Xarajat</button>
+    <button class="${form.type==='income'?'on':''}" onclick="setType('income')">Daromad</button>
+  </div>
+  <div class="ai">
+    <span>✨</span><input id="nl" placeholder='Masalan: "Taksi 35000"' onkeydown="if(event.key==='Enter')applyNL()">
+    <button onclick="applyNL()">Tahlil</button>
+  </div>
+  <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${form.amount}" oninput="form.amount=this.value">
+  <div class="cats" id="cats">${CATS.filter(c=>c.t===form.type).map(catBtn).join('')}</div>
+  <input id="note" placeholder="Izoh (ixtiyoriy)">
+  <button class="btn" onclick="saveTx()">Saqlash</button>`;
+}
+function catBtn(c){
+  const on=form.cat===c.n?'on':'';
+  return `<div class="catbtn ${on}" onclick="pickCat('${c.n.replace(/'/g,"\\'")}')">
+    <div class="cic" style="width:52px;height:52px;background:${c.c}22">${c.e}</div>
+    <div class="lbl">${c.n}</div></div>`;
+}
+function setType(t){ form.type=t; form.cat=null; document.getElementById('sheet').innerHTML=addSheet(); }
+function pickCat(n){ form.cat=n; document.getElementById('cats').innerHTML=CATS.filter(c=>c.t===form.type).map(catBtn).join(''); haptic(); }
+function applyNL(){
+  const v=document.getElementById('nl').value; const r=parseNL(v); if(!r){ return; }
+  form.type=r.type; form.amount=String(Math.round(r.amount)); if(r.cat) form.cat=r.cat;
+  document.getElementById('sheet').innerHTML=addSheet();
+  notify('success');
+}
+function saveTx(){
+  const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;
+  if(amt<=0){ shake(); return; }
+  const note=document.getElementById('note').value||'';
+  const cat=form.cat || (form.type==='income'?'Boshqa':'Boshqa');
+  state.tx.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),
+    type:form.type, amount:amt, cat, merchant:cat, note, date:new Date().toISOString()});
+  save(); closeAdd(); notify('success'); render();
+}
+function shake(){ const a=document.getElementById('amt'); if(a){ a.style.outline='2px solid var(--expense)'; } }
+
+// ================= Amallar =================
+function delTx(id){
+  if(!confirm('Ushbu tranzaksiya oʼchirilsinmi?')) return;
+  state.tx=state.tx.filter(t=>t.id!==id); save(); notify('warning'); render();
+}
+function setCur(c){ state.currency=c; save(); render(); }
+function clearAll(){ if(confirm('BARCHA maʼlumot oʼchiriladi. Davom etilsinmi?')){ state={tx:[],currency:state.currency}; save(); render(); } }
+function exportCSV(){
+  let csv='Sana,Tur,Kategoriya,Izoh,Summa\n';
+  state.tx.forEach(t=>{ csv+=[new Date(t.date).toLocaleDateString('ru-RU'),t.type,t.cat,(t.note||'').replace(/,/g,' '),signed(t)].join(',')+'\n'; });
+  const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='hisobot.csv'; a.click();
+}
+function esc(s){ return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+// Modal tashqarisiga bosilsa yopish
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target.id==='modal') closeAdd(); });
+
+render();
+</script>
+</body>
+</html>
