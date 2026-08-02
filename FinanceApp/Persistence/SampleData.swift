@@ -37,7 +37,7 @@ enum SampleData {
                 let sample = expenseSamples.randomElement()!
                 let tx = Transaction(
                     type: .expense,
-                    amount: Double(Int.random(in: sample.1).rounded()),
+                    amount: Double.random(in: sample.1).rounded(),
                     date: day,
                     merchant: sample.2,
                     category: cat(sample.0),

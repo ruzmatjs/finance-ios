@@ -37,7 +37,9 @@ final class CloudSyncMonitor {
     }
 
     private(set) var status: Status = .idle
-    private var observer: NSObjectProtocol?
+    // nonisolated(unsafe): deinit (nonisolated) shu token'ni oʻchira olishi uchun.
+    // Obyekt deinit boʻlayotganda raqobatli murojaat boʻlmaydi, shuning uchun xavfsiz.
+    nonisolated(unsafe) private var observer: NSObjectProtocol?
 
     /// Sync yoqilgan boʻlsagina kuzatuvni boshlaydi.
     func start(enabled: Bool) {
