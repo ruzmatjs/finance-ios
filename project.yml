@@ -1,0 +1,116 @@
+# XcodeGen konfiguratsiyasi.
+# macOS'da:  brew install xcodegen  ->  xcodegen generate  ->  ochilgan .xcodeproj'ni Run.
+#
+# Bu fayl 3 narsani sozlaydi:
+#   1. FinanceApp (asosiy ilova) — App Group + financeapp:// URL sxemasi
+#   2. FinanceWidgetExtension (WidgetKit) — App Group orqali umumiy bazadan oʻqiydi
+#   3. FinanceAppTests
+#
+# App Group (group.com.ruzmat.finance) ilova va widget bir xil SwiftData bazasini
+# koʻrishini taʼminlaydi. Entitlements va Info.plist'lar shu yerdan generatsiya qilinadi.
+
+name: FinanceApp
+options:
+  bundleIdPrefix: com.ruzmat
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: "" # oʻz Apple Team ID'ingizni qoʻying
+    TARGETED_DEVICE_FAMILY: "1" # iPhone
+
+targets:
+  # ============================= ASOSIY ILOVA =============================
+  FinanceApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: FinanceApp
+    dependencies:
+      - target: FinanceWidgetExtension  # widget'ni ilovaga joylaydi (embed)
+    entitlements:
+      path: FinanceApp/FinanceApp.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.ruzmat.finance
+        # CloudKit sync
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.ruzmat.finance
+        # CloudKit push (o'zgarishlarni real vaqtda olish uchun)
+        aps-environment: development
+    info:
+      path: FinanceApp/Info.plist
+      properties:
+        CFBundleDisplayName: Finance
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # CloudKit push kelganda fon rejimida sinxronlash
+        UIBackgroundModes:
+          - remote-notification
+        NSFaceIDUsageDescription: "Ilovani himoyalash uchun Face ID ishlatiladi."
+        NSLocationWhenInUseUsageDescription: "Tranzaksiyaga joylashuv biriktirish uchun."
+        NSPhotoLibraryUsageDescription: "Chek rasmini kutubxonadan biriktirish uchun."
+        NSCameraUsageDescription: "Chek rasmini kamera orqali olish uchun."
+        # financeapp:// deep-link (widget "Tez qoʻshish" tugmasi shuni ochadi)
+        CFBundleURLTypes:
+          - CFBundleURLName: com.ruzmat.finance
+            CFBundleURLSchemes:
+              - financeapp
+
+  # ========================== WIDGET EXTENSION ===========================
+  FinanceWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      # Widget'ning oʻz kodi
+      - path: FinanceWidget
+      # Ilova bilan ULASHILADIGAN kod (ikkala target ham kompilyatsiya qiladi).
+      # Widget alohida jarayonda ishlagani uchun modellar/util unga ham kerak.
+      - path: FinanceApp/Models
+      - path: FinanceApp/Persistence
+      - path: FinanceApp/Extensions
+      - path: FinanceApp/Theme
+      - path: FinanceApp/Shared
+      # Chek komponentlari PhotosUI/kamera ishlatadi — bular app-extension'da mavjud emas,
+      # shuning uchun widget target'idan istisno qilamiz.
+      - path: FinanceApp/Components
+        excludes:
+          - "ReceiptPicker.swift"
+          - "CameraPicker.swift"
+          - "ReceiptViewer.swift"
+          - "ShareSheet.swift"
+      - path: FinanceApp/Utilities/CurrencyFormatter.swift
+      - path: FinanceApp/Utilities/NaturalLanguageParser.swift
+    entitlements:
+      path: FinanceWidget/FinanceWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.ruzmat.finance
+        # CloudKit-backed store'ni ochish uchun widget ham shu entitlements'ga muhtoj.
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.ruzmat.finance
+    info:
+      path: FinanceWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Finance
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  # ============================== TESTLAR ===============================
+  FinanceAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: FinanceAppTests
+    dependencies:
+      - target: FinanceApp

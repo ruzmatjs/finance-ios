@@ -1,0 +1,158 @@
+import SwiftUI
+import SwiftData
+import Charts
+
+/// Asosiy ekran — balans, statistika, byudjet, trend va soʻnggi tranzaksiyalar.
+struct DashboardView: View {
+    @Environment(\.container) private var container
+    @Environment(\.modelContext) private var modelContext
+    @Environment(AppSettings.self) private var settings
+
+    @State private var viewModel: DashboardViewModel?
+    @State private var showAllTransactions = false
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: Theme.Spacing.lg) {
+                if let vm = viewModel {
+                    BalanceHeaderCard(
+                        totalBalance: vm.totalBalance,
+                        todayChange: vm.todayBalance,
+                        currencyCode: vm.currencyCode
+                    )
+
+                    statsGrid(vm)
+                    if !vm.weeklySpending.isEmpty { spendingTrendCard(vm) }
+                    if !vm.budgets.isEmpty { budgetSection(vm) }
+                    if !vm.upcomingBills.isEmpty { upcomingSection(vm) }
+                    recentSection(vm)
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.bottom, 120)
+        }
+        .background(Theme.Colors.background)
+        .navigationTitle("Salom 👋")
+        .navigationBarTitleDisplayMode(.large)
+        .onAppear { setupAndLoad() }
+    }
+
+    // MARK: Statistika grid
+    private func statsGrid(_ vm: DashboardViewModel) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.sm) {
+            StatCard(title: "Oylik daromad", amount: vm.monthlyIncome,
+                     currencyCode: vm.currencyCode, icon: "arrow.down.left", tint: Theme.Colors.income)
+            StatCard(title: "Oylik xarajat", amount: vm.monthlyExpense,
+                     currencyCode: vm.currencyCode, icon: "arrow.up.right", tint: Theme.Colors.expense)
+            StatCard(title: "Jamgʻarma", amount: vm.savings,
+                     currencyCode: vm.currencyCode, icon: "banknote", tint: Theme.Colors.transfer)
+            StatCard(title: "Bugungi balans", amount: vm.todayBalance,
+                     currencyCode: vm.currencyCode, icon: "sun.max", tint: Theme.Colors.warning)
+        }
+    }
+
+    // MARK: Sarf trendi (Swift Charts)
+    private func spendingTrendCard(_ vm: DashboardViewModel) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SectionHeader(title: "Haftalik sarf trendi")
+            Chart(vm.weeklySpending) { point in
+                BarMark(
+                    x: .value("Kun", point.date, unit: .day),
+                    y: .value("Summa", point.amount)
+                )
+                .foregroundStyle(Theme.Colors.accent.gradient)
+                .cornerRadius(6)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { value in
+                    AxisValueLabel(format: .dateTime.weekday(.narrow))
+                }
+            }
+            .frame(height: 160)
+        }
+        .cardStyle()
+    }
+
+    // MARK: Byudjetlar
+    private func budgetSection(_ vm: DashboardViewModel) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SectionHeader(title: "Byudjetlar")
+            ForEach(vm.budgets) { bp in
+                HStack(spacing: Theme.Spacing.md) {
+                    ProgressRing(progress: bp.progress, color: bp.isOver ? Theme.Colors.expense : bp.budget.color, size: 56)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(bp.budget.name).font(.body.weight(.medium))
+                        Text("\(CurrencyFormatter.compact(bp.spent, code: vm.currencyCode)) / \(CurrencyFormatter.compact(bp.budget.limitAmount, code: vm.currencyCode))")
+                            .font(.caption).foregroundStyle(Theme.Colors.secondaryText)
+                        if bp.isOver {
+                            Label("Byudjetdan oshdi", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Theme.Colors.expense)
+                        }
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .cardStyle()
+    }
+
+    // MARK: Yaqinlashayotgan toʻlovlar
+    private func upcomingSection(_ vm: DashboardViewModel) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SectionHeader(title: "Yaqinlashayotgan toʻlovlar")
+            ForEach(vm.upcomingBills) { bill in
+                HStack {
+                    CategoryIconView(symbol: bill.category?.symbol ?? "calendar",
+                                     color: bill.category?.color ?? Theme.Colors.warning, size: 36)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(bill.title).font(.body.weight(.medium))
+                        Text(bill.nextDueDate.formatted(.dateTime.day().month()))
+                            .font(.caption).foregroundStyle(Theme.Colors.secondaryText)
+                    }
+                    Spacer()
+                    AmountText(amount: bill.amount, currencyCode: vm.currencyCode,
+                               type: bill.type, font: .callout.weight(.semibold))
+                }
+            }
+        }
+        .cardStyle()
+    }
+
+    // MARK: Soʻnggi tranzaksiyalar
+    private func recentSection(_ vm: DashboardViewModel) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            SectionHeader(title: "Soʻnggi tranzaksiyalar", actionTitle: "Barchasi") {
+                showAllTransactions = true
+            }
+            if vm.recentTransactions.isEmpty {
+                EmptyStateView(icon: "tray", title: "Hozircha boʻsh",
+                               message: "Pastdagi + tugma orqali birinchi tranzaksiyani qoʻshing.")
+            } else {
+                ForEach(vm.recentTransactions) { tx in
+                    TransactionRow(transaction: tx)
+                    if tx.id != vm.recentTransactions.last?.id { Divider() }
+                }
+            }
+        }
+        .cardStyle()
+        .navigationDestination(isPresented: $showAllTransactions) {
+            TransactionsListView()
+        }
+    }
+
+    private func setupAndLoad() {
+        if viewModel == nil {
+            let repo: FinanceRepositoryProtocol = container?.repository
+                ?? FinanceRepository(context: modelContext)
+            viewModel = DashboardViewModel(repository: repo, currencyCode: settings.currencyCode)
+        }
+        viewModel?.load()
+    }
+}
+
+#Preview {
+    NavigationStack { DashboardView() }
+        .modelContainer(PersistenceController.preview)
+        .environment(AppSettings())
+}

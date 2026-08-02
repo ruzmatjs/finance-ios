@@ -1,0 +1,61 @@
+# macOS serverida (bepul) imzosiz .ipa yasaydi.
+# Natijani Actions -> ishga tushgan job -> "Artifacts" -> FinanceApp-ipa dan yuklab olasiz.
+# So'ng Windows'da Sideloadly bilan o'z Apple ID'ingiz orqali telefonga o'rnatasiz.
+#
+# Ishga tushirish: har "main"ga push'da AVTOMATIK, yoki qo'lda:
+#   GitHub -> Actions -> "Build iOS IPA" -> "Run workflow".
+
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # qo'lda ishga tushirish tugmasi
+
+jobs:
+  build:
+    runs-on: macos-14   # Xcode 15 + iOS 17 SDK
+    timeout-minutes: 30
+
+    steps:
+      - name: Kodni olish
+        uses: actions/checkout@v4
+
+      - name: XcodeGen o'rnatish
+        run: brew install xcodegen
+
+      - name: Xcode loyihasini generatsiya qilish (bepul konfiguratsiya)
+        run: xcodegen generate --spec project-free.yml
+
+      - name: Imzosiz build (device uchun)
+        run: |
+          set -eo pipefail
+          xcodebuild \
+            -project FinanceApp.xcodeproj \
+            -scheme FinanceApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: .ipa'ga paketlash
+        run: |
+          set -eo pipefail
+          APP_PATH="build/Build/Products/Release-iphoneos/FinanceApp.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "❌ .app topilmadi: $APP_PATH"; exit 1
+          fi
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry FinanceApp.ipa Payload
+          echo "✅ FinanceApp.ipa tayyor"
+
+      - name: .ipa'ni artifact sifatida yuklash
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinanceApp-ipa
+          path: FinanceApp.ipa
+          if-no-files-found: error
