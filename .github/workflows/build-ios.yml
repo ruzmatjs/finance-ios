@@ -34,7 +34,6 @@ jobs:
 
       - name: Imzosiz build (device uchun)
         run: |
-          set -o pipefail
           xcodebuild \
             -project FinanceApp.xcodeproj \
             -scheme FinanceApp \
@@ -44,14 +43,13 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee xcodebuild.log
-
-      - name: Xatolarni ko'rsatish (agar build muvaffaqiyatsiz bo'lsa)
-        if: failure()
-        run: |
+            build > xcodebuild.log 2>&1
+          status=$?
+          echo ""
           echo "==================== SWIFT XATOLAR ===================="
-          grep -nE "error:" xcodebuild.log | grep -viE "0 error|linker|note:" | sort -u | head -60 || echo "(error: satri topilmadi — to'liq log'ga qarang)"
+          grep -E ": error:" xcodebuild.log | sort -u | head -60 || echo "(error: satri topilmadi)"
           echo "======================================================="
+          exit $status
 
       - name: .ipa'ga paketlash
         run: |
