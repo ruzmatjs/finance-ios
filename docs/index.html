@@ -170,6 +170,8 @@ function addP(d,p,n=1){const x=new Date(d);
 function pStart(p){return p==='weekly'?weekStart():p==='yearly'?yearStart():monthStart()}
 function sameDay(a,b){return new Date(a).toDateString()===new Date(b).toDateString()}
 function fmtD(d,o){return new Date(d).toLocaleDateString('ru-RU',o||{day:'numeric',month:'short'})}
+function toLocalInput(d){const x=new Date(d||Date.now());const p=n=>String(n).padStart(2,'0');
+  return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`;}
 
 // ============ Balans ============
 function signed(t){return t.type==='income'?t.amount:t.type==='expense'?-t.amount:0}
@@ -445,7 +447,7 @@ function emptyBig(e,t,m){return `<div class="empty card"><div class="e">${e}</di
 // ============ SHEET: Tranzaksiya (qoʼshish/tahrirlash) ============
 let form={};
 function openTx(id){const ex=id?state.tx.find(t=>t.id===id):null;
-  form=ex?{...ex,edit:id}:{type:'expense',amount:'',cat:null,accountId:state.accounts[0].id,toAccountId:state.accounts[1]?.id,note:'',fav:false};
+  form=ex?{...ex,edit:id}:{type:'expense',amount:'',cat:null,accountId:state.accounts[0].id,toAccountId:state.accounts[1]?.id,note:'',fav:false,date:new Date().toISOString()};
   openSheet(txSheet);haptic('medium');}
 function txSheet(){const isT=form.type==='transfer';
   return `<div class="between"><h2>${form.edit?'Tahrirlash':'Yangi tranzaksiya'}</h2><span onclick="closeSheet()" style="font-size:22px;color:var(--text2)">✕</span></div>
@@ -458,6 +460,7 @@ function txSheet(){const isT=form.type==='transfer';
         <label class="fld">Qayerga</label><select onchange="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
    :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>
      <label class="fld">Hisob</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`}
+  <label class="fld">Sana va vaqt</label><input type="datetime-local" value="${toLocalInput(form.date)}" onchange="form.date=this.value?new Date(this.value).toISOString():form.date">
   <label class="fld">Izoh</label><input id="note" placeholder="Ixtiyoriy" value="${esc(form.note||'')}" oninput="form.note=this.value">
   ${!isT?`<div class="row" style="margin-top:14px;cursor:pointer" onclick="form.fav=!form.fav;document.getElementById('favb').textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'"><span id="favb">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span></div>`:''}
   <button class="btn" onclick="saveTx()">Saqlash</button>
@@ -470,9 +473,10 @@ function applyNL(){const v=document.getElementById('nl').value;const r=parseNL(v
 function saveTx(){const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;if(amt<=0){document.getElementById('amt').style.outline='2px solid var(--expense)';return;}
   const isT=form.type==='transfer';
   const obj={type:form.type,amount:amt,cat:isT?null:(form.cat||'Boshqa'),accountId:form.accountId,
-    toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav};
+    toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav,
+    date:form.date||new Date().toISOString()};
   if(form.edit){const t=state.tx.find(x=>x.id===form.edit);Object.assign(t,obj);}
-  else{obj.id=genId();obj.date=new Date().toISOString();state.tx.push(obj);}
+  else{obj.id=genId();state.tx.push(obj);}
   save();closeSheet();notify('success');render();}
 function delTx(id){if(!confirm('Oʼchirilsinmi?'))return;state.tx=state.tx.filter(t=>t.id!==id);save();closeSheet();notify('warning');render();}
 
