@@ -126,8 +126,10 @@ const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🍽️','🚌','🚕','
 
 // ============ Holat ============
 let state=load()||{};
+let _ready=false,_cloudTimer=null;
 function load(){try{return JSON.parse(localStorage.getItem('finance.v1'))}catch(e){return null}}
-function save(){localStorage.setItem('finance.v1',JSON.stringify(state))}
+function localWrite(){localStorage.setItem('finance.v1',JSON.stringify(state))}
+function save(){state.updatedAt=Date.now();localWrite();scheduleCloud();}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function ensure(){
   state.tx=state.tx||[];
@@ -140,10 +142,24 @@ function ensure(){
   state.budgets=state.budgets||[];
   state.goals=state.goals||[];
   state.recurring=state.recurring||[];
-  // migratsiya: eski tx'larga accountId biriktirish
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
-  save();
 }
+
+// ---- Telegram CloudStorage sync (barcha Telegram qurilmalarida) ----
+function cloudOn(){return !!(TG&&TG.CloudStorage&&TG.isVersionAtLeast&&TG.isVersionAtLeast('6.9'))}
+function chunkBytes(str,max){const enc=new TextEncoder();const out=[];let cur='',b=0;
+  for(const ch of str){const n=enc.encode(ch).length;if(b+n>max){out.push(cur);cur=ch;b=n;}else{cur+=ch;b+=n;}}
+  if(cur)out.push(cur);return out;}
+function cloudSave(){ if(!cloudOn())return; const ch=chunkBytes(JSON.stringify(state),3500);
+  TG.CloudStorage.setItem('fin_n',String(ch.length),()=>{});
+  ch.forEach((c,i)=>TG.CloudStorage.setItem('fin_'+i,c,()=>{})); }
+function scheduleCloud(){ if(!_ready||!cloudOn())return; clearTimeout(_cloudTimer); _cloudTimer=setTimeout(cloudSave,800); }
+function cloudLoad(cb){ if(!cloudOn()){cb(null);return;}
+  TG.CloudStorage.getItem('fin_n',(e,v)=>{ const n=parseInt(v); if(e||!n){cb(null);return;}
+    const keys=[];for(let i=0;i<n;i++)keys.push('fin_'+i);
+    TG.CloudStorage.getItems(keys,(e2,items)=>{ if(e2||!items){cb(null);return;}
+      let j='';for(let i=0;i<n;i++)j+=items['fin_'+i]||''; try{cb(JSON.parse(j))}catch(x){cb(null)} }); }); }
+
 ensure();
 applyTheme();
 
@@ -196,7 +212,6 @@ function runRecurring(){
       due=addP(due,r.period); r.nextDue=due.toISOString(); changed=true; } });
   if(changed)save();
 }
-runRecurring();
 
 // ============ NL parser ============
 const KW={taksi:['Taksi','expense'],taxi:['Taksi','expense'],ovqat:['Ovqat','expense'],food:['Ovqat','expense'],
@@ -436,7 +451,8 @@ function viewSettings(){
   <div class="card"><h2>Tema</h2><div class="seg">
     ${['system','light','dark'].map(t=>`<button class="${state.theme===t?'on':''}" onclick="setTheme('${t}')">${{system:'Tizim',light:'Yorugʼ',dark:'Qorongʼu'}[t]}</button>`).join('')}</div>
     <h2 style="margin-top:14px">Valyuta</h2><div class="seg">${Object.keys(SYM).map(c=>`<button class="${state.currency===c?'on':''}" onclick="setCur('${c}')">${c}</button>`).join('')}</div></div>
-  <div class="card"><div class="between"><span>Jami tranzaksiya</span><b>${state.tx.length}</b></div></div>
+  <div class="card"><div class="between"><span>Jami tranzaksiya</span><b>${state.tx.length}</b></div>
+    <div class="between" style="margin-top:10px"><span>${cloudOn()?'☁️ Telegram sync':'📱 Faqat shu qurilma'}</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Yoniq':'Oflayn'}</b></div></div>
   <div class="card"><button class="btn ghost" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button></div>
   <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.0</div>`;}
@@ -585,13 +601,31 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='
 // ============ Amallar ============
 function setCur(c){state.currency=c;save();render();}
 function setTheme(t){state.theme=t;save();applyTheme();render();}
-function clearAll(){if(confirm('BARCHA maʼlumot oʼchiriladi. Davom etilsinmi?')){const cur=state.currency,th=state.theme;localStorage.removeItem('finance.v1');state={currency:cur,theme:th};ensure();render();}}
+function clearAll(){if(confirm('BARCHA maʼlumot oʼchiriladi. Davom etilsinmi?')){const cur=state.currency,th=state.theme;state={currency:cur,theme:th};ensure();save();render();}}
 function exportCSV(){let csv='Sana,Tur,Kategoriya,Hisob,Izoh,Summa\n';
   state.tx.forEach(t=>{csv+=[fmtD(t.date,{day:'2-digit',month:'2-digit',year:'numeric'}),t.type,t.cat||'',accBy(t.accountId).name,(t.note||'').replace(/,/g,' '),signed(t)].join(',')+'\n';});
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='hisobot.csv';a.click();}
 function esc(s){return(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
-render();
+// ---- Ishga tushirish: avval lokal, keyin bulut bilan sync ----
+function boot(){
+  render(); // lokal maʼlumot bilan darhol koʼrsatamiz
+  if(!cloudOn()){ _ready=true; runRecurring(); localWrite(); return; }
+  let done=false;
+  cloudLoad(cloud=>{ if(done)return; done=true; _ready=true;
+    if(cloud && (cloud.updatedAt||0) >= (state.updatedAt||0)){
+      // Bulutdagi maʼlumot yangiroq — uni olamiz (qayta yozmaymiz)
+      state=cloud; ensure(); applyTheme(); localWrite(); runRecurring();
+    } else {
+      // Lokal yangiroq yoki bulut boʼsh — bulutga yuboramiz
+      runRecurring(); save();
+    }
+    render();
+  });
+  // Xavfsizlik: bulut 4s ichida javob bermasa, ilovani baribir ochamiz (qayta yozmasdan)
+  setTimeout(()=>{ if(done)return; done=true; _ready=true; runRecurring(); render(); },4000);
+}
+boot();
 </script>
 </body>
 </html>
