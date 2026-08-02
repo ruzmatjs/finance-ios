@@ -12,8 +12,12 @@ struct ReportsView: View {
     @State private var exportFile: ExportFile?
 
     private var interval: DateInterval {
-        let period: PeriodType = switch range {
-        case .day: .daily; case .week: .weekly; case .month: .monthly; case .year: .yearly
+        let period: PeriodType
+        switch range {
+        case .day: period = .daily
+        case .week: period = .weekly
+        case .month: period = .monthly
+        case .year: period = .yearly
         }
         return Calendar.current.currentInterval(for: period, reference: Date())
     }
