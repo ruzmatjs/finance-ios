@@ -276,8 +276,8 @@ function viewList(){
   list.sort((a,b)=> flt.sort==='dateAsc'?new Date(a.date)-new Date(b.date): flt.sort==='amtDesc'?b.amount-a.amount: flt.sort==='amtAsc'?a.amount-b.amount: new Date(b.date)-new Date(a.date));
   let html=`<h1>Tranzaksiyalar</h1>
     <input placeholder="🔍 Qidirish (summa, kategoriya, izoh)" value="${esc(flt.q)}" oninput="flt.q=this.value;renderListBody()" style="margin-bottom:10px">
-    <div class="chips" id="fltchips">${fltChips()}</div>
-    <div id="listbody">${listBody(list)}</div>`;
+    <div class="chips" id="fltchips" style="margin-bottom:18px">${fltChips()}</div>
+    <div id="listbody" style="margin-top:6px">${listBody(list)}</div>`;
   return html;
 }
 function fltChips(){const S=[['','Hammasi'],['income','Daromad'],['expense','Xarajat'],['transfer','Oʼtkazma']];
