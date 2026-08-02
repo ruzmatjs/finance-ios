@@ -34,6 +34,7 @@ jobs:
 
       - name: Imzosiz build (device uchun)
         run: |
+          set +e   # xato bo'lsa ham davom etib, xatolarni chop etish uchun
           xcodebuild \
             -project FinanceApp.xcodeproj \
             -scheme FinanceApp \
