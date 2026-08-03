@@ -74,8 +74,9 @@
   .prog{height:8px;background:var(--sep);border-radius:99px;overflow:hidden;margin:8px 0}
   .prog>i{display:block;height:100%;border-radius:99px}
   .ring{transform:rotate(-90deg)}
-  .listrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--sep);cursor:pointer} .listrow:last-child{border-bottom:none}
-  .chip{display:inline-block;padding:5px 12px;border-radius:99px;background:var(--card);font-size:13px;font-weight:600;border:1px solid var(--sep);cursor:pointer;color:var(--text2)}
+  .listrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--sep);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)}
+  .listrow *{pointer-events:none}
+  .chip{display:inline-block;padding:5px 12px;border-radius:99px;background:var(--card);font-size:13px;font-weight:600;border:1px solid var(--sep);cursor:pointer;color:var(--text2);touch-action:manipulation}
   .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px}
@@ -450,13 +451,13 @@ function viewCategories(){
 function viewSettings(){
   return `<h1>Sozlamalar</h1>
   <div class="card">
-    <div class="listrow" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
-    <div class="listrow" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
-    <div class="listrow" onclick="nav('budgets')">📊 <span style="flex:1">Byudjetlar</span> ›</div>
-    <div class="listrow" onclick="nav('goals')">🎯 <span style="flex:1">Maqsadlar</span> ›</div>
-    <div class="listrow" onclick="nav('recurring')">🔄 <span style="flex:1">Takrorlanuvchi toʼlovlar</span> ›</div>
-    <div class="listrow" onclick="nav('calendar')">📅 <span style="flex:1">Kalendar</span> ›</div>
-    <div class="listrow" onclick="nav('stats')">📈 <span style="flex:1">Statistika</span> ›</div></div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('budgets')">📊 <span style="flex:1">Byudjetlar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('goals')">🎯 <span style="flex:1">Maqsadlar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('recurring')">🔄 <span style="flex:1">Takrorlanuvchi toʼlovlar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('calendar')">📅 <span style="flex:1">Kalendar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('stats')">📈 <span style="flex:1">Statistika</span> ›</div></div>
   <div class="card"><h2>Tema</h2><div class="seg">
     ${['system','light','dark'].map(t=>`<button class="${state.theme===t?'on':''}" onclick="setTheme('${t}')">${{system:'Tizim',light:'Yorugʼ',dark:'Qorongʼu'}[t]}</button>`).join('')}</div>
     <h2 style="margin-top:14px">Valyuta</h2><div class="seg">${Object.keys(SYM).map(c=>`<button class="${state.currency===c?'on':''}" onclick="setCur('${c}')">${c}</button>`).join('')}</div></div>
