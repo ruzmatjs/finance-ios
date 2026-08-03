@@ -18,7 +18,8 @@ struct AccountsView: View {
                     Text("Umumiy balans").font(.headline)
                     Spacer()
                     Text(CurrencyFormatter.string(totalBalance, code: settings.currencyCode))
-                        .font(.headline).foregroundStyle(Theme.Colors.accent)
+                        .font(.headline)
+                        .foregroundStyle(totalBalance >= 0 ? Theme.Colors.accent : Theme.Colors.expense)
                 }
             }
             Section {

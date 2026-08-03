@@ -34,7 +34,9 @@ struct BalanceHeaderCard: View {
             RoundedRectangle(cornerRadius: Theme.Radius.xl, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color(hex: "#5E5CE6"), Color(hex: "#0A84FF")],
+                        colors: totalBalance >= 0
+                            ? [Color(hex: "#5E5CE6"), Color(hex: "#0A84FF")]
+                            : [Color(hex: "#FF3B30"), Color(hex: "#C0392B")],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     )
                 )
@@ -46,6 +48,6 @@ struct BalanceHeaderCard: View {
                         .padding(2)
                 )
         }
-        .shadow(color: Color(hex: "#5E5CE6").opacity(0.35), radius: 18, y: 10)
+        .shadow(color: (totalBalance >= 0 ? Color(hex: "#5E5CE6") : Color(hex: "#FF3B30")).opacity(0.35), radius: 18, y: 10)
     }
 }

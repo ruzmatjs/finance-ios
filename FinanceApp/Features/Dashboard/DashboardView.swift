@@ -10,6 +10,7 @@ struct DashboardView: View {
 
     @State private var viewModel: DashboardViewModel?
     @State private var showAllTransactions = false
+    @State private var editingTransaction: Transaction?
 
     var body: some View {
         ScrollView {
@@ -130,12 +131,23 @@ struct DashboardView: View {
                                message: "Pastdagi + tugma orqali birinchi tranzaksiyani qoʻshing.")
             } else {
                 ForEach(vm.recentTransactions) { tx in
-                    TransactionRow(transaction: tx)
+                    Button {
+                        editingTransaction = tx
+                    } label: {
+                        TransactionRow(transaction: tx)
+                    }
+                    .buttonStyle(.plain)
                     if tx.id != vm.recentTransactions.last?.id { Divider() }
                 }
             }
         }
         .cardStyle()
+        .sheet(item: $editingTransaction) { tx in
+            AddTransactionView(transaction: tx)
+                .onDisappear {
+                    viewModel?.load()
+                }
+        }
         .navigationDestination(isPresented: $showAllTransactions) {
             TransactionsListView()
         }

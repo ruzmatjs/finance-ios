@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 /// Tranzaksiya qoʻshish/tahrirlash oynasi.
 /// - Daromad / Xarajat / Oʻtkazma segmenti
@@ -28,6 +29,7 @@ struct AddTransactionView: View {
     @State private var isFavorite = false
     @State private var smartInput = ""
     @State private var receiptData: Data?
+    @State private var isLoaded = false
 
     init(transaction: Transaction? = nil) {
         self.existing = transaction
@@ -172,9 +174,11 @@ struct AddTransactionView: View {
 
     private func loadExisting() {
         if selectedAccount == nil { selectedAccount = accounts.first }
+        guard !isLoaded else { return }
+        isLoaded = true
         guard let tx = existing else { return }
         type = tx.type
-        amountText = String(Int(tx.amount))
+        amountText = tx.amount.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(tx.amount)) : String(tx.amount)
         selectedCategory = tx.category
         selectedAccount = tx.account
         toAccount = tx.toAccount
@@ -213,6 +217,7 @@ struct AddTransactionView: View {
             repo.add(tx)
         }
         container?.haptics.notify(.success)
+        WidgetCenter.shared.reloadAllTimelines()
 
         // Xarajat qoʻshilgach byudjet ostonasi buzilganini tekshiramiz.
         if type == .expense && settings.notificationsEnabled {

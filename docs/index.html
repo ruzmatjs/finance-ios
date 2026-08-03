@@ -32,6 +32,7 @@
   .link{color:var(--accent);font-size:14px;font-weight:600;cursor:pointer}
   .back{display:inline-flex;align-items:center;gap:4px;color:var(--accent);cursor:pointer;font-size:16px;font-weight:600;margin-bottom:6px}
   .hero{background:linear-gradient(135deg,#5e5ce6,#0a84ff);color:#fff;border-radius:24px;padding:22px;box-shadow:0 10px 26px rgba(94,92,230,.35);margin-bottom:14px}
+  .hero.danger{background:linear-gradient(135deg,#ff3b30,#ff453a);box-shadow:0 10px 26px rgba(255,59,48,.35)}
   .hero .lbl{opacity:.85;font-size:14px;font-weight:600}
   .hero .amt{font-size:34px;font-weight:800;margin:6px 0;letter-spacing:-.5px}
   .hero .sub{font-size:13px;font-weight:600;opacity:.95}
@@ -249,7 +250,7 @@ function viewHome(){
   const bpv=state.budgets.slice(0,2).map(budgetMini).join('');
   const up=upcoming();
   return `<h1>Salom 👋</h1>
-  <div class="hero"><div class="lbl">Umumiy balans</div><div class="amt mono">${fmt(total())}</div>
+  <div class="hero ${total()<0?'danger':''}"><div class="lbl">Umumiy balans</div><div class="amt mono">${fmt(total())}</div>
     <div class="sub">${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun</div></div>
   <div class="grid2">
     ${stat('Oylik daromad',compact(inc),'⬇️','var(--income)')}
@@ -337,7 +338,7 @@ function donut(arr,tot){const R=52,C=2*Math.PI*R;let off=0;
 // ============ HISOBLAR ============
 function viewAccounts(){
   return head('Hisoblar','settings')+
-    `<div class="card"><div class="between"><span class="muted">Umumiy balans</span><b class="mono" style="color:var(--accent)">${fmt(total())}</b></div></div>`+
+    `<div class="card"><div class="between"><span class="muted">Umumiy balans</span><b class="mono" style="color:${total()<0?'var(--expense)':'var(--accent)'}">${fmt(total())}</b></div></div>`+
     `<div class="card">${state.accounts.map(a=>`<div class="listrow" onclick="openAccount('${a.id}')">
       <div class="cic" style="background:${a.c}22">${a.e}</div><div style="flex:1"><div style="font-weight:600">${esc(a.name)}</div></div>
       <b class="mono" style="color:${accountBalance(a.id)<0?'var(--expense)':'var(--text)'}">${fmt(accountBalance(a.id))}</b></div>`).join('')}</div>`+
@@ -476,7 +477,7 @@ function txSheet(){const isT=form.type==='transfer';
         <label class="fld">Qayerga</label><select onchange="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
    :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>
      <label class="fld">Hisob</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`}
-  <label class="fld">Sana va vaqt</label><input type="datetime-local" value="${toLocalInput(form.date)}" onchange="form.date=this.value?new Date(this.value).toISOString():form.date">
+  <label class="fld">Sana va vaqt</label><input type="datetime-local" id="txdate" value="${toLocalInput(form.date)}" oninput="form.date=this.value?new Date(this.value).toISOString():form.date" onchange="form.date=this.value?new Date(this.value).toISOString():form.date">
   <label class="fld">Izoh</label><input id="note" placeholder="Ixtiyoriy" value="${esc(form.note||'')}" oninput="form.note=this.value">
   ${!isT?`<div class="row" style="margin-top:14px;cursor:pointer" onclick="form.fav=!form.fav;document.getElementById('favb').textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'"><span id="favb">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span></div>`:''}
   <button class="btn" onclick="saveTx()">Saqlash</button>
@@ -486,7 +487,8 @@ function fType(t){form.type=t;form.cat=null;openSheet(txSheet);}
 function pickCat(n){form.cat=n;openSheet(txSheet);setTimeout(()=>{const a=document.getElementById('amt');},0);haptic();}
 function applyNL(){const v=document.getElementById('nl').value;const r=parseNL(v);if(!r)return;
   form.type=r.type;form.amount=String(Math.round(r.amount));if(r.cat)form.cat=r.cat;openSheet(txSheet);notify('success');}
-function saveTx(){const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;if(amt<=0){document.getElementById('amt').style.outline='2px solid var(--expense)';return;}
+function saveTx(){const dEl=document.getElementById('txdate');if(dEl&&dEl.value){form.date=new Date(dEl.value).toISOString();}
+  const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;if(amt<=0){document.getElementById('amt').style.outline='2px solid var(--expense)';return;}
   const isT=form.type==='transfer';
   const obj={type:form.type,amount:amt,cat:isT?null:(form.cat||'Boshqa'),accountId:form.accountId,
     toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav,

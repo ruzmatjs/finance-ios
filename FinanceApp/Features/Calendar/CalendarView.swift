@@ -8,6 +8,7 @@ struct CalendarView: View {
 
     @State private var month = Date()
     @State private var selectedDay = Date()
+    @State private var editingTransaction: Transaction?
 
     private let cal = Calendar.current
     private let columns = Array(repeating: GridItem(.flexible()), count: 7)
@@ -47,6 +48,7 @@ struct CalendarView: View {
         }
         .background(Theme.Colors.background)
         .navigationTitle("Kalendar")
+        .sheet(item: $editingTransaction) { AddTransactionView(transaction: $0) }
     }
 
     private var monthHeader: some View {
@@ -94,18 +96,26 @@ struct CalendarView: View {
         let totals = dayTotals(selectedDay)
         let dayTx = transactions.filter { cal.isDate($0.date, inSameDayAs: selectedDay) }
             .sorted { $0.date > $1.date }
+        let netBalance = totals.income - totals.expense
         return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             SectionHeader(title: selectedDay.formatted(.dateTime.weekday(.wide).day().month()))
             HStack {
                 miniStat("Daromad", totals.income, Theme.Colors.income)
                 miniStat("Xarajat", totals.expense, Theme.Colors.expense)
-                miniStat("Balans", totals.income - totals.expense, Theme.Colors.transfer)
+                miniStat("Balans", netBalance, netBalance >= 0 ? Theme.Colors.income : Theme.Colors.expense)
             }
             if dayTx.isEmpty {
                 Text("Bu kunda tranzaksiya yoʻq").font(.caption).foregroundStyle(Theme.Colors.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center).padding(.vertical)
             } else {
-                ForEach(dayTx) { TransactionRow(transaction: $0) }
+                ForEach(dayTx) { tx in
+                    Button {
+                        editingTransaction = tx
+                    } label: {
+                        TransactionRow(transaction: tx)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .cardStyle()
