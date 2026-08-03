@@ -18,6 +18,8 @@ enum DefaultCategories {
     static let expense: [(String, String, String)] = [
         ("Food", "fork.knife", "#FF9500"),
         ("Cafe", "cup.and.saucer.fill", "#FF9F0A"),
+        ("Drinks", "drop.fill", "#00C7BE"),
+        ("Ichimliklar", "drop.fill", "#00C7BE"),
         ("Restaurant", "wineglass.fill", "#FF375F"),
         ("Transport", "bus.fill", "#0A84FF"),
         ("Taxi", "car.fill", "#FFD60A"),

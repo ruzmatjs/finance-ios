@@ -27,6 +27,7 @@ struct NaturalLanguageParser {
         "lunch": ("Restaurant", .expense), "tushlik": ("Restaurant", .expense),
         "cafe": ("Cafe", .expense), "kafe": ("Cafe", .expense),
         "coffee": ("Cafe", .expense), "kofe": ("Cafe", .expense),
+        "water": ("Ichimliklar", .expense), "suv": ("Ichimliklar", .expense), "ichimlik": ("Ichimliklar", .expense), "ichimliklar": ("Ichimliklar", .expense),
         "fuel": ("Fuel", .expense), "benzin": ("Fuel", .expense),
         "shopping": ("Shopping", .expense), "xarid": ("Shopping", .expense),
         "clothes": ("Clothing", .expense), "kiyim": ("Clothing", .expense),
