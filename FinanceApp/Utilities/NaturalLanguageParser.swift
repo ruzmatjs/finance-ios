@@ -36,6 +36,8 @@ struct NaturalLanguageParser {
         "internet": ("Internet", .expense),
         "mobile": ("Mobile", .expense), "aloqa": ("Mobile", .expense),
         "rent": ("Rent", .expense), "ijara": ("Rent", .expense),
+        "qarz": ("Qarz", .expense), "debt": ("Qarz", .expense),
+        "kredit": ("Kredit", .expense), "credit": ("Kredit", .expense), "loan": ("Kredit", .expense),
         "netflix": ("Entertainment", .expense),
         // Daromadlar
         "salary": ("Salary", .income), "maosh": ("Salary", .income),

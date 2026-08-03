@@ -110,8 +110,9 @@ function notify(t='success'){try{TG?.HapticFeedback?.notificationOccurred(t)}cat
 const DEF_CATS=[
  {n:'Maosh',e:'💰',c:'#34c759',t:'income'},{n:'Bonus',e:'🎁',c:'#30d158',t:'income'},
  {n:'Frilans',e:'💻',c:'#00c7be',t:'income'},{n:'Investitsiya',e:'📈',c:'#32ade6',t:'income'},
- {n:'Sovgʼa',e:'🎀',c:'#af52de',t:'income'},{n:'Boshqa',e:'➕',c:'#8e8e93',t:'income'},
+ {n:'Sovgʼa',e:'🎀',c:'#af52de',t:'income'},{n:'Qarz',e:'🤝',c:'#34c759',t:'income'},{n:'Boshqa',e:'➕',c:'#8e8e93',t:'income'},
  {n:'Ovqat',e:'🍔',c:'#ff9500',t:'expense'},{n:'Kafe',e:'☕',c:'#ff9f0a',t:'expense'},{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'},
+ {n:'Qarz',e:'🤝',c:'#ff9500',t:'expense'},{n:'Kredit',e:'💳',c:'#ff2d55',t:'expense'},
  {n:'Restoran',e:'🍽️',c:'#ff375f',t:'expense'},{n:'Transport',e:'🚌',c:'#0a84ff',t:'expense'},
  {n:'Taksi',e:'🚕',c:'#ffd60a',t:'expense'},{n:'Yoqilgʼi',e:'⛽',c:'#ff453a',t:'expense'},
  {n:'Xarid',e:'🛍️',c:'#ff2d55',t:'expense'},{n:'Kiyim',e:'👕',c:'#bf5af2',t:'expense'},
@@ -123,7 +124,7 @@ const DEF_CATS=[
  {n:'Boshqa',e:'📦',c:'#8e8e93',t:'expense'},
 ];
 const PALETTE=['#ff3b30','#ff9500','#ffcc00','#34c759','#00c7be','#0a84ff','#5856d6','#af52de','#ff2d55','#a2845e','#8e8e93','#64d2ff'];
-const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵'];
+const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵'];
 
 // ============ Holat ============
 let state=load()||{};
@@ -138,6 +139,9 @@ function ensure(){
   state.theme=state.theme||'system';
   state.cats=state.cats||DEF_CATS.map(c=>({...c}));
   if(!state.cats.some(c=>c.n==='Ichimliklar')){state.cats.splice(7,0,{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'});}
+  if(!state.cats.some(c=>c.n==='Qarz'&&c.t==='expense')){state.cats.push({n:'Qarz',e:'🤝',c:'#ff9500',t:'expense'});}
+  if(!state.cats.some(c=>c.n==='Kredit'&&c.t==='expense')){state.cats.push({n:'Kredit',e:'💳',c:'#ff2d55',t:'expense'});}
+  if(!state.cats.some(c=>c.n==='Qarz'&&c.t==='income')){state.cats.push({n:'Qarz',e:'🤝',c:'#34c759',t:'income'});}
   if(!state.accounts){state.accounts=[
     {id:'cash',name:'Naqd',e:'💵',c:'#34c759',opening:0},
     {id:'card',name:'Bank karta',e:'💳',c:'#0a84ff',opening:0}];}
@@ -217,7 +221,8 @@ function runRecurring(){
 
 // ============ NL parser ============
 const KW={taksi:['Taksi','expense'],taxi:['Taksi','expense'],ovqat:['Ovqat','expense'],food:['Ovqat','expense'],
- kafe:['Kafe','expense'],cafe:['Kafe','expense'],kofe:['Kafe','expense'],suv:['Ichimliklar','expense'],ichimlik:['Ichimliklar','expense'],ichimliklar:['Ichimliklar','expense'],water:['Ichimliklar','expense'],restoran:['Restoran','expense'],
+ kafe:['Kafe','expense'],cafe:['Kafe','expense'],kofe:['Kafe','expense'],suv:['Ichimliklar','expense'],ichimlik:['Ichimliklar','expense'],ichimliklar:['Ichimliklar','expense'],water:['Ichimliklar','expense'],
+ qarz:['Qarz','expense'],debt:['Qarz','expense'],kredit:['Kredit','expense'],credit:['Kredit','expense'],loan:['Kredit','expense'],restoran:['Restoran','expense'],
  benzin:['Yoqilgʼi','expense'],xarid:['Xarid','expense'],kiyim:['Kiyim','expense'],dori:['Dorixona','expense'],
  sport:['Sport','expense'],internet:['Internet','expense'],aloqa:['Aloqa','expense'],ijara:['Ijara','expense'],
  sayohat:['Sayohat','expense'],maosh:['Maosh','income'],salary:['Maosh','income'],bonus:['Bonus','income'],

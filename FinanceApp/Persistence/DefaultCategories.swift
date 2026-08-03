@@ -12,6 +12,7 @@ enum DefaultCategories {
         ("Investment", "chart.line.uptrend.xyaxis", "#32ADE6"),
         ("Cashback", "arrow.uturn.backward.circle.fill", "#5AC8FA"),
         ("Gift", "gift.circle.fill", "#AF52DE"),
+        ("Qarz", "banknote.fill", "#34C759"),
         ("Other", "ellipsis.circle.fill", "#8E8E93")
     ]
 
@@ -20,6 +21,9 @@ enum DefaultCategories {
         ("Cafe", "cup.and.saucer.fill", "#FF9F0A"),
         ("Drinks", "drop.fill", "#00C7BE"),
         ("Ichimliklar", "drop.fill", "#00C7BE"),
+        ("Qarz", "hand.raised.fill", "#FF9500"),
+        ("Kredit", "creditcard.fill", "#FF2D55"),
+        ("Credit", "creditcard.fill", "#FF2D55"),
         ("Restaurant", "wineglass.fill", "#FF375F"),
         ("Transport", "bus.fill", "#0A84FF"),
         ("Taxi", "car.fill", "#FFD60A"),
