@@ -473,7 +473,7 @@ function txSheet(){const isT=form.type==='transfer';
   <div class="seg"><button class="${form.type==='expense'?'on':''}" onclick="fType('expense')">Xarajat</button>
     <button class="${form.type==='income'?'on':''}" onclick="fType('income')">Daromad</button>
     <button class="${form.type==='transfer'?'on':''}" onclick="fType('transfer')">Oʼtkazma</button></div>
-  <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${form.amount||''}" oninput="form.amount=this.value">
+  <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${form.amount||''}" oninput="form.amount=this.value;this.style.outline='none';">
   ${isT?`<label class="fld">Qayerdan</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
         <label class="fld">Qayerga</label><select onchange="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
    :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>
@@ -483,14 +483,30 @@ function txSheet(){const isT=form.type==='transfer';
   ${!isT?`<div class="row" style="margin-top:14px;cursor:pointer" onclick="form.fav=!form.fav;document.getElementById('favb').textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'"><span id="favb">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span></div>`:''}
   <button class="btn" onclick="saveTx()">Saqlash</button>
   ${form.edit?`<button class="btn danger" onclick="delTx('${form.edit}')">Oʼchirish</button>`:''}`;}
+function saveFormInputs(){
+  const aEl=document.getElementById('amt');if(aEl)form.amount=aEl.value;
+  const nEl=document.getElementById('note');if(nEl)form.note=nEl.value;
+  const dEl=document.getElementById('txdate');if(dEl&&dEl.value)form.date=new Date(dEl.value).toISOString();
+}
 function catBtn(c){const on=form.cat===c.n?'on':'';return `<div class="catbtn ${on}" onclick="pickCat('${c.n.replace(/'/g,"\\'")}')"><div class="cic" style="width:52px;height:52px;background:${c.c}22">${c.e}</div><div class="lbl">${c.n}</div></div>`;}
-function fType(t){form.type=t;form.cat=null;openSheet(txSheet);}
-function pickCat(n){form.cat=n;openSheet(txSheet);setTimeout(()=>{const a=document.getElementById('amt');},0);haptic();}
-function applyNL(){const v=document.getElementById('nl').value;const r=parseNL(v);if(!r)return;
-  form.type=r.type;form.amount=String(Math.round(r.amount));if(r.cat)form.cat=r.cat;openSheet(txSheet);notify('success');}
-function saveTx(){const dEl=document.getElementById('txdate');if(dEl&&dEl.value){form.date=new Date(dEl.value).toISOString();}
-  const nEl=document.getElementById('note');if(nEl){form.note=nEl.value;}
-  const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;if(amt<=0){document.getElementById('amt').style.outline='2px solid var(--expense)';return;}
+function fType(t){saveFormInputs();form.type=t;form.cat=null;openSheet(txSheet);}
+function pickCat(n){
+  saveFormInputs();
+  form.cat=n;
+  document.querySelectorAll('.catbtn').forEach(b=>{
+    const lbl=b.querySelector('.lbl')?.textContent;
+    b.classList.toggle('on',lbl===n);
+  });
+  haptic();
+}
+function saveTx(){
+  saveFormInputs();
+  const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;
+  if(amt<=0){
+    const aEl=document.getElementById('amt');
+    if(aEl){aEl.style.outline='2px solid var(--expense)';aEl.focus();}
+    return;
+  }
   const isT=form.type==='transfer';
   const obj={type:form.type,amount:amt,cat:isT?null:(form.cat||'Boshqa'),accountId:form.accountId,
     toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav,
