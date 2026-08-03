@@ -459,7 +459,13 @@ function viewSettings(){
     <div class="between" style="margin-top:10px"><span>${cloudOn()?'☁️ Telegram sync':'📱 Faqat shu qurilma'}</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Yoniq':'Oflayn'}</b></div></div>
   <div class="card"><button class="btn ghost" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button></div>
- let form={};
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.0</div>`;}
+
+function emptyMini(t){return `<div class="empty"><div style="font-size:30px">📭</div>${t}</div>`}
+function emptyBig(e,t,m){return `<div class="empty card"><div class="e">${e}</div><h2>${t}</h2><div style="margin-top:6px">${m}</div></div>`}
+
+// ============ SHEET: Tranzaksiya (qoʼshish/tahrirlash) ============
+let form={};
 function openTx(id){const ex=id?state.tx.find(t=>t.id===id):null;
   form=ex?{...ex,edit:id}:{type:'expense',amount:'',cat:null,accountId:state.accounts[0].id,toAccountId:state.accounts[1]?.id,note:'',fav:false,date:new Date().toISOString()};
   openSheet(txSheet);haptic('medium');}
