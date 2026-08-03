@@ -27,7 +27,6 @@ struct AddTransactionView: View {
     @State private var note = ""
     @State private var merchant = ""
     @State private var isFavorite = false
-    @State private var smartInput = ""
     @State private var receiptData: Data?
     @State private var isLoaded = false
 
@@ -45,7 +44,6 @@ struct AddTransactionView: View {
         NavigationStack {
             Form {
                 typePicker
-                if existing == nil { smartAddSection }
                 amountSection
                 if type != .transfer { categorySection } else { transferSection }
                 detailsSection
@@ -72,20 +70,6 @@ struct AddTransactionView: View {
         .listRowBackground(Color.clear)
     }
 
-    // MARK: AI Smart add
-    private var smartAddSection: some View {
-        Section {
-            HStack {
-                Image(systemName: "sparkles").foregroundStyle(Theme.Colors.accent)
-                TextField("Masalan: \"Taxi 35000\"", text: $smartInput)
-                    .onSubmit(applySmartInput)
-                if !smartInput.isEmpty {
-                    Button("Tahlil") { applySmartInput() }.font(.caption.weight(.semibold))
-                }
-            }
-        } footer: {
-            Text("Aqlli kiritish: summa, kategoriya va turni matndan avtomatik aniqlaydi.")
-        }
     }
 
     private var amountSection: some View {
@@ -159,18 +143,6 @@ struct AddTransactionView: View {
     }
 
     // MARK: Logic
-    private func applySmartInput() {
-        guard let result = NaturalLanguageParser().parse(smartInput, defaultCurrency: settings.currencyCode) else { return }
-        withAnimation {
-            type = result.type
-            amountText = String(Int(result.amount))
-            if let hint = result.categoryHint {
-                selectedCategory = allCategories.first { $0.name == hint }
-            }
-            if let m = result.merchant { merchant = m }
-        }
-        container?.haptics.notify(.success)
-    }
 
     private func loadExisting() {
         if selectedAccount == nil { selectedAccount = accounts.first }
