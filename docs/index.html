@@ -459,13 +459,7 @@ function viewSettings(){
     <div class="between" style="margin-top:10px"><span>${cloudOn()?'☁️ Telegram sync':'📱 Faqat shu qurilma'}</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Yoniq':'Oflayn'}</b></div></div>
   <div class="card"><button class="btn ghost" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button></div>
-  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.0</div>`;}
-
-function emptyMini(t){return `<div class="empty"><div style="font-size:30px">📭</div>${t}</div>`}
-function emptyBig(e,t,m){return `<div class="empty card"><div class="e">${e}</div><h2>${t}</h2><div style="margin-top:6px">${m}</div></div>`}
-
-// ============ SHEET: Tranzaksiya (qoʼshish/tahrirlash) ============
-let form={};
+ let form={};
 function openTx(id){const ex=id?state.tx.find(t=>t.id===id):null;
   form=ex?{...ex,edit:id}:{type:'expense',amount:'',cat:null,accountId:state.accounts[0].id,toAccountId:state.accounts[1]?.id,note:'',fav:false,date:new Date().toISOString()};
   openSheet(txSheet);haptic('medium');}
@@ -474,11 +468,12 @@ function txSheet(){const isT=form.type==='transfer';
   <div class="seg"><button class="${form.type==='expense'?'on':''}" onclick="fType('expense')">Xarajat</button>
     <button class="${form.type==='income'?'on':''}" onclick="fType('income')">Daromad</button>
     <button class="${form.type==='transfer'?'on':''}" onclick="fType('transfer')">Oʼtkazma</button></div>
+  ${!form.edit&&!isT?`<div class="ai"><span>✨</span><input id="nl" placeholder='Masalan: "Taksi 35000" yoki "Karta taksi 35000"' onkeydown="if(event.key==='Enter'){event.preventDefault();applyNL();}"><button type="button" onclick="applyNL()">Tahlil</button></div>`:''}
   <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${form.amount||''}" oninput="form.amount=this.value;this.style.outline='none';">
-  ${isT?`<label class="fld">Qayerdan</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
-        <label class="fld">Qayerga</label><select onchange="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
+  ${isT?`<label class="fld">Qayerdan</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();" oninput="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
+        <label class="fld">Qayerga</label><select id="toacc" onchange="form.toAccountId=this.value;saveFormInputs();" oninput="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
    :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>
-     <label class="fld">Hisob</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`}
+      <label class="fld">Hisob</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();" oninput="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`}
   <label class="fld">Sana va vaqt</label><input type="datetime-local" id="txdate" value="${toLocalInput(form.date)}" oninput="form.date=this.value?new Date(this.value).toISOString():form.date" onchange="form.date=this.value?new Date(this.value).toISOString():form.date">
   <label class="fld">Izoh</label><input id="note" placeholder="Ixtiyoriy" value="${esc(form.note||'')}" oninput="form.note=this.value">
   ${!isT?`<div class="row" style="margin-top:14px;cursor:pointer" onclick="form.fav=!form.fav;document.getElementById('favb').textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'"><span id="favb">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span></div>`:''}
@@ -488,6 +483,23 @@ function saveFormInputs(){
   const aEl=document.getElementById('amt');if(aEl)form.amount=aEl.value;
   const nEl=document.getElementById('note');if(nEl)form.note=nEl.value;
   const dEl=document.getElementById('txdate');if(dEl&&dEl.value)form.date=new Date(dEl.value).toISOString();
+  const accEl=document.getElementById('acc');if(accEl)form.accountId=accEl.value;
+  const toAccEl=document.getElementById('toacc');if(toAccEl)form.toAccountId=toAccEl.value;
+}
+function applyNL(){
+  saveFormInputs();
+  const v=document.getElementById('nl')?.value||'';
+  const r=parseNL(v);if(!r)return;
+  form.type=r.type;form.amount=String(Math.round(r.amount));if(r.cat)form.cat=r.cat;
+  const lower=v.toLowerCase();
+  if(lower.includes('karta')||lower.includes('card')){
+    const cardAcc=state.accounts.find(a=>a.id==='card'||a.name.toLowerCase().includes('karta')||a.name.toLowerCase().includes('card'));
+    if(cardAcc)form.accountId=cardAcc.id;
+  }else if(lower.includes('naqd')||lower.includes('cash')){
+    const cashAcc=state.accounts.find(a=>a.id==='cash'||a.name.toLowerCase().includes('naqd')||a.name.toLowerCase().includes('cash'));
+    if(cashAcc)form.accountId=cashAcc.id;
+  }
+  openSheet(txSheet);notify('success');
 }
 function catBtn(c){const on=form.cat===c.n?'on':'';return `<div class="catbtn ${on}" onclick="pickCat('${c.n.replace(/'/g,"\\'")}')"><div class="cic" style="width:52px;height:52px;background:${c.c}22">${c.e}</div><div class="lbl">${c.n}</div></div>`;}
 function fType(t){saveFormInputs();form.type=t;form.cat=null;openSheet(txSheet);}
