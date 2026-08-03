@@ -315,9 +315,11 @@ function listBody(list){
 }
 function txRow(t){const c=catBy(t.cat,t.type);const col=t.type==='income'?'var(--income)':t.type==='expense'?'var(--expense)':'var(--transfer)';
   const sign=t.type==='income'?'+':t.type==='expense'?'−':'';const acc=accBy(t.accountId);
+  const baseTitle = t.cat || t.merchant || 'Tranzaksiya';
+  const nameTitle = t.note ? `${baseTitle} (${t.note})` : baseTitle;
   return `<div class="cic" style="background:${c.c}22">${t.type==='transfer'?'🔄':c.e}</div>
-    <div style="flex:1;min-width:0"><div class="name">${esc(t.merchant||t.cat||'—')} ${t.fav?'⭐':''}</div>
-      <div class="meta">${acc.name} · ${sameDay(t.date,now())?'Bugun':fmtD(t.date)}${t.note?' · '+esc(t.note):''}</div></div>
+    <div style="flex:1;min-width:0"><div class="name">${esc(nameTitle)} ${t.fav?'⭐':''}</div>
+      <div class="meta">${acc.name} · ${sameDay(t.date,now())?'Bugun':fmtD(t.date)}</div></div>
     <div class="amt mono" style="color:${col}">${sign}${fmt(t.amount)}</div>`;}
 function txRowClick(t){return `<div class="tx row" onclick="openTx('${t.id}')">${txRow(t)}</div>`;}
 
@@ -487,6 +489,7 @@ function pickCat(n){form.cat=n;openSheet(txSheet);setTimeout(()=>{const a=docume
 function applyNL(){const v=document.getElementById('nl').value;const r=parseNL(v);if(!r)return;
   form.type=r.type;form.amount=String(Math.round(r.amount));if(r.cat)form.cat=r.cat;openSheet(txSheet);notify('success');}
 function saveTx(){const dEl=document.getElementById('txdate');if(dEl&&dEl.value){form.date=new Date(dEl.value).toISOString();}
+  const nEl=document.getElementById('note');if(nEl){form.note=nEl.value;}
   const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;if(amt<=0){document.getElementById('amt').style.outline='2px solid var(--expense)';return;}
   const isT=form.type==='transfer';
   const obj={type:form.type,amount:amt,cat:isT?null:(form.cat||'Boshqa'),accountId:form.accountId,

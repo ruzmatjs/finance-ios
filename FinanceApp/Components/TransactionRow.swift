@@ -4,6 +4,19 @@ import SwiftUI
 struct TransactionRow: View {
     let transaction: Transaction
 
+    private var titleText: String {
+        let baseName: String
+        if let catName = transaction.category?.name {
+            baseName = catName
+        } else if !transaction.merchant.isEmpty {
+            baseName = transaction.merchant
+        } else {
+            baseName = transaction.type.title
+        }
+        let trimmedNote = transaction.note.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedNote.isEmpty ? baseName : "\(baseName) (\(trimmedNote))"
+    }
+
     var body: some View {
         HStack(spacing: Theme.Spacing.sm) {
             CategoryIconView(
@@ -13,9 +26,7 @@ struct TransactionRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text(transaction.merchant.isEmpty
-                         ? (transaction.category?.name ?? transaction.type.title)
-                         : transaction.merchant)
+                    Text(titleText)
                         .font(.body.weight(.medium))
                         .foregroundStyle(Theme.Colors.primaryText)
                         .lineLimit(1)
