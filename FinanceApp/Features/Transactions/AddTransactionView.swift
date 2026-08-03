@@ -70,8 +70,6 @@ struct AddTransactionView: View {
         .listRowBackground(Color.clear)
     }
 
-    }
-
     private var amountSection: some View {
         Section("Summa") {
             HStack {
