@@ -12,6 +12,15 @@ struct DashboardView: View {
     @State private var showAllTransactions = false
     @State private var editingTransaction: Transaction?
 
+    @State private var selectedPointDate: Date? = nil
+
+    private func selectedWeeklyPoint(_ vm: DashboardViewModel) -> DashboardViewModel.WeeklyTrendPoint? {
+        if let sel = selectedPointDate {
+            return vm.weeklyPoints.first { Calendar.current.isDate($0.date, inSameDayAs: sel) }
+        }
+        return vm.weeklyPoints.last
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(spacing: Theme.Spacing.lg) {
@@ -23,7 +32,7 @@ struct DashboardView: View {
                     )
 
                     statsGrid(vm)
-                    if !vm.weeklySpending.isEmpty { spendingTrendCard(vm) }
+                    if !vm.weeklyPoints.isEmpty { spendingTrendCard(vm) }
                     if !vm.budgets.isEmpty { budgetSection(vm) }
                     if !vm.upcomingBills.isEmpty { upcomingSection(vm) }
                     recentSection(vm)
@@ -52,18 +61,56 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: Sarf trendi (Swift Charts)
+    // MARK: Daromad va xarajat trendi (Swift Charts)
     private func spendingTrendCard(_ vm: DashboardViewModel) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            SectionHeader(title: "Haftalik sarf trendi")
-            Chart(vm.weeklySpending) { point in
-                BarMark(
-                    x: .value("Kun", point.date, unit: .day),
-                    y: .value("Summa", point.amount)
-                )
-                .foregroundStyle(Theme.Colors.accent.gradient)
-                .cornerRadius(6)
+        let activePoint = selectedWeeklyPoint(vm)
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                SectionHeader(title: "Haftalik daromad va xarajat")
+                Spacer()
+                HStack(spacing: 8) {
+                    Label("Daromad", systemImage: "circle.fill")
+                        .font(.caption2.bold())
+                        .foregroundStyle(Theme.Colors.income)
+                    Label("Xarajat", systemImage: "circle.fill")
+                        .font(.caption2.bold())
+                        .foregroundStyle(Theme.Colors.expense)
+                }
             }
+
+            if let pt = activePoint {
+                let diff = pt.income - pt.expense
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(pt.date.formatted(.dateTime.weekday(.wide).day().month()))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.Colors.secondaryText)
+                    HStack(spacing: 12) {
+                        Text("🟢 +\(CurrencyFormatter.string(pt.income, code: vm.currencyCode))")
+                            .font(.caption2.bold())
+                            .foregroundStyle(Theme.Colors.income)
+                        Text("🔴 −\(CurrencyFormatter.string(pt.expense, code: vm.currencyCode))")
+                            .font(.caption2.bold())
+                            .foregroundStyle(Theme.Colors.expense)
+                        Text("📊 \(CurrencyFormatter.signed(diff, code: vm.currencyCode))")
+                            .font(.caption2.bold())
+                            .foregroundStyle(diff >= 0 ? Theme.Colors.income : Theme.Colors.expense)
+                    }
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.Colors.secondaryBackground, in: RoundedRectangle(cornerRadius: 10))
+            }
+
+            Chart(vm.chartEntries) { entry in
+                BarMark(
+                    x: .value("Kun", entry.date, unit: .day),
+                    y: .value("Summa", entry.scaledAmount)
+                )
+                .foregroundStyle(entry.category == "Daromad" ? Theme.Colors.income : Theme.Colors.expense)
+                .position(by: .value("Tur", entry.category))
+                .cornerRadius(4)
+            }
+            .chartXSelection(value: $selectedPointDate)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day)) { value in
                     AxisValueLabel(format: .dateTime.weekday(.narrow))

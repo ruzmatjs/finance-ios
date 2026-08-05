@@ -18,12 +18,24 @@ final class DashboardViewModel {
     var recentTransactions: [Transaction] = []
     var upcomingBills: [RecurringTransaction] = []
     var budgets: [BudgetProgress] = []
-    var weeklySpending: [DailyPoint] = []
+    var weeklyPoints: [WeeklyTrendPoint] = []
+    var chartEntries: [ChartBarEntry] = []
 
-    struct DailyPoint: Identifiable {
+    struct WeeklyTrendPoint: Identifiable {
         let id = UUID()
         let date: Date
-        let amount: Double
+        let income: Double
+        let expense: Double
+        let scaledIncome: Double
+        let scaledExpense: Double
+    }
+
+    struct ChartBarEntry: Identifiable {
+        let id = UUID()
+        let date: Date
+        let category: String
+        let rawAmount: Double
+        let scaledAmount: Double
     }
 
     struct BudgetProgress: Identifiable {
@@ -65,13 +77,42 @@ final class DashboardViewModel {
         // Soʻnggi tranzaksiyalar
         recentTransactions = Array(all.prefix(6))
 
-        // Haftalik sarf trendi (soʻnggi 7 kun)
-        weeklySpending = (0..<7).reversed().compactMap { offset in
+        // Haftalik daromad va xarajat trendi (soʻnggi 7 kun)
+        let rawPoints: [(date: Date, inc: Double, exp: Double)] = (0..<7).reversed().compactMap { offset in
             guard let day = cal.date(byAdding: .day, value: -offset, to: now) else { return nil }
-            let sum = all
+            let inc = all
+                .filter { $0.type == .income && cal.isDate($0.date, inSameDayAs: day) }
+                .reduce(0) { $0 + $1.amount }
+            let exp = all
                 .filter { $0.type == .expense && cal.isDate($0.date, inSameDayAs: day) }
                 .reduce(0) { $0 + $1.amount }
-            return DailyPoint(date: day, amount: sum)
+            return (day, inc, exp)
+        }
+
+        let maxVal = rawPoints.map { max($0.inc, $0.exp) }.max() ?? 1.0
+        let maxAmount = max(maxVal, 1.0)
+
+        weeklyPoints = rawPoints.map { p in
+            func scale(_ val: Double) -> Double {
+                guard val > 0 else { return 0 }
+                let ratio = val / maxAmount
+                let scaledRatio = max(pow(ratio, 0.55), 0.10)
+                return scaledRatio * maxAmount
+            }
+            return WeeklyTrendPoint(
+                date: p.date,
+                income: p.inc,
+                expense: p.exp,
+                scaledIncome: scale(p.inc),
+                scaledExpense: scale(p.exp)
+            )
+        }
+
+        chartEntries = weeklyPoints.flatMap { p in
+            [
+                ChartBarEntry(date: p.date, category: "Daromad", rawAmount: p.income, scaledAmount: p.scaledIncome),
+                ChartBarEntry(date: p.date, category: "Xarajat", rawAmount: p.expense, scaledAmount: p.scaledExpense)
+            ]
         }
 
         // Byudjet progressi
