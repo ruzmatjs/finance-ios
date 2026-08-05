@@ -18,8 +18,6 @@ enum DefaultCategories {
 
     static let expense: [(String, String, String)] = [
         ("Food", "fork.knife", "#FF9500"),
-        ("Cafe", "cup.and.saucer.fill", "#FF9F0A"),
-        ("Drinks", "drop.fill", "#00C7BE"),
         ("Ichimliklar", "drop.fill", "#00C7BE"),
         ("Qarz", "hand.raised.fill", "#FF9500"),
         ("Kredit", "creditcard.fill", "#FF2D55"),
@@ -36,7 +34,7 @@ enum DefaultCategories {
         ("Education", "graduationcap.fill", "#32ADE6"),
         ("Health", "heart.fill", "#FF3B30"),
         ("Pharmacy", "cross.case.fill", "#FF6482"),
-        ("Gym", "figure.run", "#30D158"),
+        ("Jarimalar", "exclamationmark.triangle.fill", "#FF453A"),
         ("Travel", "airplane", "#64D2FF"),
         ("Hotel", "bed.double.fill", "#5E5CE6"),
         ("Family", "person.2.fill", "#FF9500"),
@@ -45,7 +43,6 @@ enum DefaultCategories {
         ("Utilities", "bolt.fill", "#FFCC00"),
         ("Internet", "wifi", "#0A84FF"),
         ("Mobile", "iphone", "#30B0C7"),
-        ("Rent", "house.fill", "#FF9F0A"),
         ("Insurance", "shield.lefthalf.filled", "#5856D6"),
         ("Taxes", "building.columns.fill", "#8E8E93"),
         ("Gifts", "gift.fill", "#FF2D55"),

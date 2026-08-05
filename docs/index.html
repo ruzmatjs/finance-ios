@@ -112,20 +112,20 @@ const DEF_CATS=[
  {n:'Maosh',e:'💰',c:'#34c759',t:'income'},{n:'Bonus',e:'🎁',c:'#30d158',t:'income'},
  {n:'Frilans',e:'💻',c:'#00c7be',t:'income'},{n:'Investitsiya',e:'📈',c:'#32ade6',t:'income'},
  {n:'Sovgʼa',e:'🎀',c:'#af52de',t:'income'},{n:'Qarz',e:'🤝',c:'#34c759',t:'income'},{n:'Boshqa',e:'➕',c:'#8e8e93',t:'income'},
- {n:'Ovqat',e:'🍔',c:'#ff9500',t:'expense'},{n:'Kafe',e:'☕',c:'#ff9f0a',t:'expense'},{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'},
+ {n:'Ovqat',e:'🍔',c:'#ff9500',t:'expense'},{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'},
  {n:'Qarz',e:'🤝',c:'#ff9500',t:'expense'},{n:'Kredit',e:'💳',c:'#ff2d55',t:'expense'},
  {n:'Restoran',e:'🍽️',c:'#ff375f',t:'expense'},{n:'Transport',e:'🚌',c:'#0a84ff',t:'expense'},
  {n:'Taksi',e:'🚕',c:'#ffd60a',t:'expense'},{n:'Yoqilgʼi',e:'⛽',c:'#ff453a',t:'expense'},
  {n:'Xarid',e:'🛍️',c:'#ff2d55',t:'expense'},{n:'Kiyim',e:'👕',c:'#bf5af2',t:'expense'},
  {n:'Texnika',e:'📱',c:'#5856d6',t:'expense'},{n:'Koʼngilochar',e:'🎮',c:'#af52de',t:'expense'},
  {n:'Salomatlik',e:'❤️',c:'#ff3b30',t:'expense'},{n:'Dorixona',e:'💊',c:'#ff6482',t:'expense'},
- {n:'Sport',e:'🏋️',c:'#30d158',t:'expense'},{n:'Sayohat',e:'✈️',c:'#64d2ff',t:'expense'},
+ {n:'Jarimalar',e:'👮',c:'#ff453a',t:'expense'},{n:'Sayohat',e:'✈️',c:'#64d2ff',t:'expense'},
  {n:'Kommunal',e:'💡',c:'#ffcc00',t:'expense'},{n:'Internet',e:'🌐',c:'#0a84ff',t:'expense'},
- {n:'Aloqa',e:'📶',c:'#30b0c7',t:'expense'},{n:'Ijara',e:'🏠',c:'#ff9f0a',t:'expense'},
+ {n:'Aloqa',e:'📶',c:'#30b0c7',t:'expense'},
  {n:'Boshqa',e:'📦',c:'#8e8e93',t:'expense'},
 ];
 const PALETTE=['#ff3b30','#ff9500','#ffcc00','#34c759','#00c7be','#0a84ff','#5856d6','#af52de','#ff2d55','#a2845e','#8e8e93','#64d2ff'];
-const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵'];
+const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵','👮','📜'];
 
 // ============ Holat ============
 let state=load()||{};
@@ -139,6 +139,11 @@ function ensure(){
   state.currency=state.currency||'UZS';
   state.theme=state.theme||'system';
   state.cats=state.cats||DEF_CATS.map(c=>({...c}));
+  const removedNames=['Kafe','Kofe','Sport','Ijara'];
+  state.cats=state.cats.filter(c=>!removedNames.includes(c.n));
+  if(!state.cats.some(c=>c.n==='Jarimalar'&&c.t==='expense')){
+    state.cats.push({n:'Jarimalar',e:'👮',c:'#ff453a',t:'expense'});
+  }
   if(!state.cats.some(c=>c.n==='Ichimliklar')){state.cats.splice(7,0,{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'});}
   if(!state.cats.some(c=>c.n==='Qarz'&&c.t==='expense')){state.cats.push({n:'Qarz',e:'🤝',c:'#ff9500',t:'expense'});}
   if(!state.cats.some(c=>c.n==='Kredit'&&c.t==='expense')){state.cats.push({n:'Kredit',e:'💳',c:'#ff2d55',t:'expense'});}
@@ -181,6 +186,26 @@ function fmt(a){const s=SYM[state.currency]||state.currency;return Math.round(Ma
 function fmtSigned(a){return(a>0?'+':a<0?'−':'')+fmt(a)}
 function compact(a){const s=SYM[state.currency]||state.currency,x=Math.abs(a);
   if(x>=1e6)return(a/1e6).toFixed(1).replace('.0','')+'M '+s; if(x>=1e3)return Math.round(a/1e3)+'K '+s; return fmt(a)}
+function fmtNumInput(val){
+  if(val==null||val==='')return '';
+  const s=String(val).replace(/\s/g,'').replace(/,/g,'.');
+  const parts=s.split('.');
+  if(parts[0]){parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  return parts.join('.');
+}
+function formatAmtInput(el){
+  const start=el.selectionStart;
+  const oldLen=el.value.length;
+  const raw=el.value.replace(/\s/g,'').replace(/,/g,'.');
+  const parts=raw.split('.');
+  if(parts[0]){parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  const formatted=parts.join('.');
+  el.value=formatted;
+  if(typeof form==='object'&&form!==null) form.amount=raw;
+  el.style.outline='none';
+  const diff=formatted.length-oldLen;
+  try{el.setSelectionRange(start+diff,start+diff);}catch(e){}
+}
 
 // ============ Sana ============
 const now=()=>new Date();
@@ -222,10 +247,11 @@ function runRecurring(){
 
 // ============ NL parser ============
 const KW={taksi:['Taksi','expense'],taxi:['Taksi','expense'],ovqat:['Ovqat','expense'],food:['Ovqat','expense'],
- kafe:['Kafe','expense'],cafe:['Kafe','expense'],kofe:['Kafe','expense'],suv:['Ichimliklar','expense'],ichimlik:['Ichimliklar','expense'],ichimliklar:['Ichimliklar','expense'],water:['Ichimliklar','expense'],
+ suv:['Ichimliklar','expense'],ichimlik:['Ichimliklar','expense'],ichimliklar:['Ichimliklar','expense'],water:['Ichimliklar','expense'],
  qarz:['Qarz','expense'],debt:['Qarz','expense'],kredit:['Kredit','expense'],credit:['Kredit','expense'],loan:['Kredit','expense'],restoran:['Restoran','expense'],
  benzin:['Yoqilgʼi','expense'],xarid:['Xarid','expense'],kiyim:['Kiyim','expense'],dori:['Dorixona','expense'],
- sport:['Sport','expense'],internet:['Internet','expense'],aloqa:['Aloqa','expense'],ijara:['Ijara','expense'],
+ jarima:['Jarimalar','expense'],jarimalar:['Jarimalar','expense'],fine:['Jarimalar','expense'],penalty:['Jarimalar','expense'],
+ internet:['Internet','expense'],aloqa:['Aloqa','expense'],
  sayohat:['Sayohat','expense'],maosh:['Maosh','income'],salary:['Maosh','income'],bonus:['Bonus','income'],
  frilans:['Frilans','income'],sovga:['Sovgʼa','income']};
 function parseNL(txt){const s=txt.toLowerCase();let amount=0;
@@ -260,10 +286,10 @@ function viewHome(){
   <div class="hero ${total()<0?'danger':''}"><div class="lbl">Umumiy balans</div><div class="amt mono">${fmt(total())}</div>
     <div class="sub">${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun</div></div>
   <div class="grid2">
-    ${stat('Oylik daromad',compact(inc),'⬇️','var(--income)')}
-    ${stat('Oylik xarajat',compact(exp),'⬆️','var(--expense)')}
-    ${stat('Jamgʼarma',compact(inc-exp),'💵','var(--transfer)')}
-    ${stat('Bugun',compact(todayChange()),'☀️','var(--warn)')}</div>
+    ${stat('Oylik daromad',fmt(inc),'⬇️','var(--income)')}
+    ${stat('Oylik xarajat',fmt(exp),'⬆️','var(--expense)')}
+    ${stat('Jamgʼarma',fmt(inc-exp),'💵','var(--transfer)')}
+    ${stat('Bugun',fmt(todayChange()),'☀️','var(--warn)')}</div>
   <div class="card"><div class="between"><h2>Tez kirish</h2></div>
     <div class="chips" style="margin-top:10px">
       <span class="chip" onclick="nav('accounts')">🏦 Hisoblar</span>
@@ -481,7 +507,7 @@ function txSheet(){const isT=form.type==='transfer';
     <button class="${form.type==='income'?'on':''}" onclick="fType('income')">Daromad</button>
     <button class="${form.type==='transfer'?'on':''}" onclick="fType('transfer')">Oʼtkazma</button></div>
   ${!form.edit&&!isT?`<div class="ai"><span>✨</span><input id="nl" placeholder='Masalan: "Taksi 35000" yoki "Karta taksi 35000"' onkeydown="if(event.key==='Enter'){event.preventDefault();applyNL();}"><button type="button" onclick="applyNL()">Tahlil</button></div>`:''}
-  <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${form.amount||''}" oninput="form.amount=this.value;this.style.outline='none';">
+  <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatAmtInput(this)">
   ${isT?`<label class="fld">Qayerdan</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();" oninput="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
         <label class="fld">Qayerga</label><select id="toacc" onchange="form.toAccountId=this.value;saveFormInputs();" oninput="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
    :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>
@@ -492,7 +518,7 @@ function txSheet(){const isT=form.type==='transfer';
   <button class="btn" onclick="saveTx()">Saqlash</button>
   ${form.edit?`<button class="btn danger" onclick="delTx('${form.edit}')">Oʼchirish</button>`:''}`;}
 function saveFormInputs(){
-  const aEl=document.getElementById('amt');if(aEl)form.amount=aEl.value;
+  const aEl=document.getElementById('amt');if(aEl)form.amount=aEl.value.replace(/\s/g,'');
   const nEl=document.getElementById('note');if(nEl)form.note=nEl.value;
   const dEl=document.getElementById('txdate');if(dEl&&dEl.value)form.date=new Date(dEl.value).toISOString();
   const accEl=document.getElementById('acc');if(accEl)form.accountId=accEl.value;
@@ -593,17 +619,17 @@ function saveGoal(){const tg=parseFloat(String(form.target).replace(/[^\d.]/g,''
 function delGoal(id){if(!confirm('Oʼchirilsinmi?'))return;state.goals=state.goals.filter(g=>g.id!==id);save();closeSheet();render();}
 function openContribute(id){const g=state.goals.find(x=>x.id===id);form={gid:id,add:''};
   openSheet(`<div class="between"><h2>${esc(g.name)}</h2><span onclick="closeSheet()" style="font-size:22px">✕</span></div>
-   <label class="fld">Qancha qoʼshasiz?</label><input class="amtinput" inputmode="decimal" placeholder="0" oninput="form.add=this.value">
+   <label class="fld">Qancha qoʼshasiz?</label><input class="amtinput" inputmode="decimal" placeholder="0" oninput="formatAmtInput(this)">
    <button class="btn" onclick="doContribute()">Qoʼshish</button>`);}
 function doContribute(){const g=state.goals.find(x=>x.id===form.gid);g.current+=parseFloat(String(form.add).replace(/[^\d.]/g,''))||0;save();closeSheet();notify('success');render();}
 
 // ============ SHEET: Takrorlanuvchi ============
 function openRecurring(id){const ex=id?state.recurring.find(r=>r.id===id):null;
-  form=ex?{...ex,edit:id}:{title:'',type:'expense',amount:'',period:'monthly',cat:'Ijara',accountId:state.accounts[0].id,nextDue:new Date().toISOString()};openSheet(recurringSheet);}
+  form=ex?{...ex,edit:id}:{title:'',type:'expense',amount:'',period:'monthly',cat:'Jarimalar',accountId:state.accounts[0].id,nextDue:new Date().toISOString()};openSheet(recurringSheet);}
 function recurringSheet(){return `<div class="between"><h2>${form.edit?'Qoida':'Yangi qoida'}</h2><span onclick="closeSheet()" style="font-size:22px">✕</span></div>
   <label class="fld">Nomi</label><input value="${esc(form.title)}" oninput="form.title=this.value" placeholder="Masalan: Netflix">
   <div class="seg" style="margin-top:12px"><button class="${form.type==='expense'?'on':''}" onclick="form.type='expense';openSheet(recurringSheet)">Xarajat</button><button class="${form.type==='income'?'on':''}" onclick="form.type='income';openSheet(recurringSheet)">Daromad</button></div>
-  <label class="fld">Summa</label><input inputmode="decimal" value="${form.amount||''}" oninput="form.amount=this.value">
+  <label class="fld">Summa</label><input inputmode="decimal" value="${fmtNumInput(form.amount)}" oninput="formatAmtInput(this)">
   <label class="fld">Davr</label><select onchange="form.period=this.value">${['daily','weekly','monthly','yearly'].map(p=>`<option value="${p}" ${form.period===p?'selected':''}>${{daily:'Kunlik',weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[p]}</option>`).join('')}</select>
   <label class="fld">Kategoriya</label><select onchange="form.cat=this.value">${cats(form.type).map(c=>`<option ${form.cat===c.n?'selected':''}>${c.n}</option>`).join('')}</select>
   <label class="fld">Hisob</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>

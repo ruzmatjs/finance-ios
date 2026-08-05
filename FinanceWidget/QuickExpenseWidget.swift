@@ -15,9 +15,9 @@ private struct QuickPreset: Identifiable {
 }
 
 private let quickPresets: [QuickPreset] = [
-    .init(label: "Kofe", category: "Cafe", amount: 25_000, symbol: "cup.and.saucer.fill", color: .orange),
+    .init(label: "Jarima", category: "Jarimalar", amount: 50_000, symbol: "exclamationmark.triangle.fill", color: .red),
     .init(label: "Taksi", category: "Taxi", amount: 20_000, symbol: "car.fill", color: .yellow),
-    .init(label: "Ovqat", category: "Food", amount: 50_000, symbol: "fork.knife", color: .red),
+    .init(label: "Ovqat", category: "Food", amount: 50_000, symbol: "fork.knife", color: .orange),
     .init(label: "Transport", category: "Transport", amount: 5_000, symbol: "bus.fill", color: .blue)
 ]
 

@@ -22,7 +22,7 @@ enum SampleData {
         // Soʻnggi 45 kun uchun tasodifiy realistik tranzaksiyalar.
         let expenseSamples: [(String, ClosedRange<Double>, String)] = [
             ("Food", 25_000...90_000, "Korzinka"),
-            ("Cafe", 15_000...45_000, "Chocco"),
+            ("Jarimalar", 50_000...200_000, "YHXH"),
             ("Taxi", 12_000...40_000, "Yandex Go"),
             ("Fuel", 80_000...200_000, "UNG"),
             ("Shopping", 50_000...400_000, "Mediapark"),
@@ -57,10 +57,10 @@ enum SampleData {
         }
 
         // Byudjet
-        if let food = cat("Food"), let cafe = cat("Cafe") {
-            context.insert(Budget(name: "Oziq-ovqat", limitAmount: 2_000_000,
+        if let food = cat("Food"), let jarima = cat("Jarimalar") {
+            context.insert(Budget(name: "Oziq-ovqat va Jarima", limitAmount: 2_000_000,
                                   period: .monthly, colorHex: "#FF9500",
-                                  categories: [food, cafe]))
+                                  categories: [food, jarima]))
         }
 
         // Maqsad
@@ -73,10 +73,10 @@ enum SampleData {
                             colorHex: "#5856D6"))
 
         // Takrorlanuvchi
-        if let rent = cat("Rent") {
-            context.insert(RecurringTransaction(title: "Ijara", type: .expense,
-                                                amount: 3_500_000, period: .monthly,
-                                                category: rent, account: card))
+        if let jarima = cat("Jarimalar") {
+            context.insert(RecurringTransaction(title: "Avto Jarima", type: .expense,
+                                                amount: 250_000, period: .monthly,
+                                                category: jarima, account: card))
         }
 
         try? context.save()

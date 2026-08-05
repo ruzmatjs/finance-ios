@@ -77,6 +77,19 @@ struct AddTransactionView: View {
                     .keyboardType(.decimalPad)
                     .font(Theme.Font.largeAmount)
                     .foregroundStyle(type == .income ? Theme.Colors.income : (type == .expense ? Theme.Colors.expense : Theme.Colors.transfer))
+                    .onChange(of: amountText) { _, newValue in
+                        let rawDigits = newValue.filter { $0.isNumber }
+                        if let number = Double(rawDigits), number > 0 {
+                            let formatter = NumberFormatter()
+                            formatter.numberStyle = .decimal
+                            formatter.groupingSeparator = " "
+                            if let formatted = formatter.string(from: NSNumber(value: number)), formatted != newValue {
+                                amountText = formatted
+                            }
+                        } else if rawDigits.isEmpty && newValue != "" {
+                            amountText = ""
+                        }
+                    }
                 Text(CurrencyFormatter.symbol(for: settings.currencyCode))
                     .foregroundStyle(Theme.Colors.secondaryText)
             }

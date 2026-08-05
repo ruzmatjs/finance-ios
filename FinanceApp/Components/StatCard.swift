@@ -28,7 +28,7 @@ struct StatCard: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(Theme.Colors.secondaryText)
-            Text(CurrencyFormatter.compact(amount, code: currencyCode))
+            Text(CurrencyFormatter.string(amount, code: currencyCode))
                 .font(.system(.title3, design: .rounded).weight(.bold))
                 .foregroundStyle(Theme.Colors.primaryText)
                 .minimumScaleFactor(0.7)
