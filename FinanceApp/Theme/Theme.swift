@@ -35,6 +35,7 @@ enum Theme {
         static let warning = Color(hex: "#FF9500")
 
         static let background = Color(.systemGroupedBackground)
+        static let secondaryBackground = Color(.tertiarySystemGroupedBackground)
         static let card = Color(.secondarySystemGroupedBackground)
         static let separator = Color(.separator)
         static let primaryText = Color(.label)
