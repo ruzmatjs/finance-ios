@@ -752,8 +752,7 @@ function txSheet(){const isT=form.type==='transfer';
   <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatAmtInput(this)">
   ${isT?`<label class="fld">Qayerdan</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();" oninput="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
         <label class="fld">Qayerga</label><select id="toacc" onchange="form.toAccountId=this.value;saveFormInputs();" oninput="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
-   :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>
-      <label class="fld">Hisob</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();" oninput="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`}
+   :`<div class="cats">${cats(form.type).map(catBtn).join('')}</div>`}
   <label class="fld">Sana va vaqt</label><input type="datetime-local" id="txdate" value="${toLocalInput(form.date)}" oninput="form.date=this.value?new Date(this.value).toISOString():form.date" onchange="form.date=this.value?new Date(this.value).toISOString():form.date">
   <label class="fld">Izoh</label><input id="note" placeholder="Ixtiyoriy" value="${esc(form.note||'')}" oninput="form.note=this.value">
   ${!isT?`<div class="row" style="margin-top:14px;cursor:pointer" onclick="form.fav=!form.fav;document.getElementById('favb').textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'"><span id="favb">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span></div>`:''}

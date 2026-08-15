@@ -83,7 +83,7 @@ struct ReportsView: View {
             guard interval.contains(tx.date) else { return false }
             if excludeCash {
                 let accName = tx.account?.name.lowercased() ?? ""
-                if tx.account?.id == "cash" || accName.contains("naqd") { return false }
+                if tx.account?.type == .cash || accName.contains("naqd") { return false }
             }
             if excludeLarge {
                 if tx.amount >= largeThreshold { return false }
@@ -214,7 +214,7 @@ struct ReportsView: View {
             Button(action: { shiftPeriod(by: -1) }) {
                 Image(systemName: "chevron.left")
                     .padding(8)
-                    .background(Theme.Colors.cardBackground)
+                    .background(Theme.Colors.card)
                     .clipShape(Circle())
             }
             Spacer()
@@ -232,7 +232,7 @@ struct ReportsView: View {
             Button(action: { shiftPeriod(by: 1) }) {
                 Image(systemName: "chevron.right")
                     .padding(8)
-                    .background(Theme.Colors.cardBackground)
+                    .background(Theme.Colors.card)
                     .clipShape(Circle())
             }
         }
@@ -300,7 +300,7 @@ struct ReportsView: View {
                         .font(.caption)
                         .foregroundStyle(Theme.Colors.secondaryText)
                 } else {
-                    Text("Sof natija: \(CurrencyFormatter.format(netBalance, code: settings.currencyCode))")
+                    Text("Sof natija: \(CurrencyFormatter.string(netBalance, code: settings.currencyCode))")
                         .font(.caption.bold())
                         .foregroundStyle(netBalance >= 0 ? Theme.Colors.income : Theme.Colors.expense)
 
@@ -318,7 +318,7 @@ struct ReportsView: View {
             }
             .padding(Theme.Spacing.sm)
             .background(Theme.Colors.secondaryBackground)
-            .cornerRadius(Theme.Radius.small)
+            .cornerRadius(Theme.Radius.sm)
         }
         .cardStyle()
     }
@@ -327,13 +327,15 @@ struct ReportsView: View {
     private var summaryCards: some View {
         HStack(spacing: Theme.Spacing.md) {
             StatCard(title: "Daromad",
-                     amount: CurrencyFormatter.compact(totalIncome, code: settings.currencyCode),
+                     amount: totalIncome,
+                     currencyCode: settings.currencyCode,
                      icon: "arrow.down.left.circle.fill",
-                     color: Theme.Colors.income)
+                     tint: Theme.Colors.income)
             StatCard(title: "Xarajat",
-                     amount: CurrencyFormatter.compact(totalExpense, code: settings.currencyCode),
+                     amount: totalExpense,
+                     currencyCode: settings.currencyCode,
                      icon: "arrow.up.right.circle.fill",
-                     color: Theme.Colors.expense)
+                     tint: Theme.Colors.expense)
         }
     }
 
