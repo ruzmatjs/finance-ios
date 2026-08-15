@@ -421,17 +421,196 @@ function txRow(t){const c=catBy(t.cat,t.type);const col=t.type==='income'?'var(-
 function txRowClick(t){return `<div class="tx row" onclick="openTx('${t.id}')">${txRow(t)}</div>`;}
 
 // ============ HISOBOT ============
-function viewReport(){const ms=monthStart().getTime();
-  const exp=state.tx.filter(t=>t.type==='expense'&&new Date(t.date).getTime()>=ms);
-  const tot=exp.reduce((s,t)=>s+t.amount,0);const byCat={};
-  exp.forEach(t=>byCat[t.cat]=(byCat[t.cat]||0)+t.amount);
-  const arr=Object.entries(byCat).map(([n,v])=>({n,v,c:catBy(n).c})).sort((a,b)=>b.v-a.v);
-  let html=`<h1>Hisobot</h1><div class="muted" style="margin:-8px 0 14px">Joriy oy · xarajatlar</div>`;
-  if(!arr.length)return html+emptyBig('📊','Maʼlumot yoʼq','Bu oy uchun xarajat kiritilmagan');
-  html+=`<div class="card">${donut(arr,tot)}<div class="legend">${arr.slice(0,10).map(x=>`<div class="li"><span class="dot" style="background:${x.c}"></span>${x.n}<span class="pct">${Math.round(x.v/tot*100)}% · ${compact(x.v)}</span></div>`).join('')}</div></div>`;
-  return html;}
+let reportType = 'expense'; // 'expense', 'income', 'all'
+let reportRange = 'month';  // 'day', 'week', 'month', 'year'
+let reportRefDate = new Date();
+let reportExcludeCash = false;
+let reportExcludeLarge = false;
+let reportLargeThreshold = 5000000;
+
+function setReportType(t){ reportType=t; render(); haptic(); }
+function setReportRange(r){ reportRange=r; render(); haptic(); }
+function toggleReportCash(){ reportExcludeCash=!reportExcludeCash; render(); haptic(); }
+function toggleReportLarge(){ reportExcludeLarge=!reportExcludeLarge; render(); haptic(); }
+function setReportLargeThreshold(val){ reportLargeThreshold=Math.max(1000, Number(val)||5000000); render(); }
+
+function shiftReportPeriod(dir){
+  const d = new Date(reportRefDate);
+  if(reportRange === 'day') d.setDate(d.getDate() + dir);
+  else if(reportRange === 'week') d.setDate(d.getDate() + (dir * 7));
+  else if(reportRange === 'month') d.setMonth(d.getMonth() + dir);
+  else if(reportRange === 'year') d.setFullYear(d.getFullYear() + dir);
+  reportRefDate = d;
+  render(); haptic();
+}
+
+function setReportPickerValue(val){
+  if(!val) return;
+  if(reportRange==='year') reportRefDate = new Date(Number(val), 0, 1);
+  else reportRefDate = new Date(val);
+  render(); haptic();
+}
+
+function getReportInterval(){
+  const d = reportRefDate;
+  if(reportRange === 'day'){
+    const st = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+    const en = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    return { st, en, label: d.toLocaleDateString('ru-RU', {weekday:'short', day:'numeric', month:'long', year:'numeric'}) };
+  } else if(reportRange === 'week'){
+    const st = weekStart(d);
+    const en = new Date(st.getTime() + 7*86400000 - 1);
+    return { st, en, label: `${st.toLocaleDateString('ru-RU', {day:'numeric', month:'short'})} — ${en.toLocaleDateString('ru-RU', {day:'numeric', month:'short', year:'numeric'})}` };
+  } else if(reportRange === 'year'){
+    const st = new Date(d.getFullYear(), 0, 1);
+    const en = new Date(d.getFullYear(), 11, 31, 23, 59, 59, 999);
+    return { st, en, label: `${d.getFullYear()}-yil` };
+  } else {
+    const st = monthStart(d);
+    const en = new Date(d.getFullYear(), d.getMonth()+1, 0, 23, 59, 59, 999);
+    return { st, en, label: d.toLocaleDateString('ru-RU', {month:'long', year:'numeric'}) };
+  }
+}
+
+function getReportPickerVal(){
+  const d = reportRefDate;
+  const p = n => String(n).padStart(2, '0');
+  if(reportRange === 'month') return `${d.getFullYear()}-${p(d.getMonth()+1)}`;
+  if(reportRange === 'year') return String(d.getFullYear());
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+function viewReport(){
+  const { st, en, label } = getReportInterval();
+  const stMs = st.getTime(), enMs = en.getTime();
+
+  let allInPeriod = state.tx.filter(t => {
+    const time = new Date(t.date).getTime();
+    return time >= stMs && time <= enMs;
+  });
+
+  let excludedCashCount = 0;
+  let excludedLargeCount = 0;
+
+  let filtered = allInPeriod.filter(t => {
+    if(reportExcludeCash){
+      const acc = accBy(t.accountId);
+      const isCash = t.accountId === 'cash' || (acc && acc.name && acc.name.toLowerCase().includes('naqd'));
+      if(isCash){ excludedCashCount++; return false; }
+    }
+    if(reportExcludeLarge){
+      if(t.amount >= reportLargeThreshold){ excludedLargeCount++; return false; }
+    }
+    return true;
+  });
+
+  let displayTx = filtered.filter(t => {
+    if(reportType === 'expense') return t.type === 'expense';
+    if(reportType === 'income') return t.type === 'income';
+    return t.type === 'expense' || t.type === 'income';
+  });
+
+  const incTot = filtered.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount, 0);
+  const expTot = filtered.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount, 0);
+  const netTot = incTot - expTot;
+
+  let currentTypeTot = 0;
+  if(reportType === 'expense') currentTypeTot = expTot;
+  else if(reportType === 'income') currentTypeTot = incTot;
+  else currentTypeTot = expTot + incTot;
+
+  const byCat = {};
+  displayTx.forEach(t => {
+    const key = t.cat || 'Boshqa';
+    byCat[key] = (byCat[key] || 0) + t.amount;
+  });
+
+  const arr = Object.entries(byCat).map(([n,v])=>({n,v,c:catBy(n, reportType==='all'?null:reportType).c})).sort((a,b)=>b.v-a.v);
+
+  let html = `<h1>Hisobot</h1>`;
+  
+  // Turlar segmenti
+  html += `<div class="seg">
+    <button class="${reportType==='expense'?'on':''}" onclick="setReportType('expense')">🔴 Xarajat</button>
+    <button class="${reportType==='income'?'on':''}" onclick="setReportType('income')">🟢 Daromad</button>
+    <button class="${reportType==='all'?'on':''}" onclick="setReportType('all')">⚖️ Barchasi (Sof)</button>
+  </div>`;
+
+  // Davr segmenti
+  html += `<div class="seg" style="margin-top:6px">
+    <button class="${reportRange==='day'?'on':''}" onclick="setReportRange('day')">Kun</button>
+    <button class="${reportRange==='week'?'on':''}" onclick="setReportRange('week')">Hafta</button>
+    <button class="${reportRange==='month'?'on':''}" onclick="setReportRange('month')">Oy</button>
+    <button class="${reportRange==='year'?'on':''}" onclick="setReportRange('year')">Yil</button>
+  </div>`;
+
+  // Period navigator
+  html += `<div class="card" style="padding:10px 14px">
+    <div class="between">
+      <button class="chip" onclick="shiftReportPeriod(-1)">‹ Oldingi</button>
+      <b style="font-size:14px;text-align:center">${esc(label)}</b>
+      <button class="chip" onclick="shiftReportPeriod(1)">Keyingi ›</button>
+    </div>
+    <div style="margin-top:8px;text-align:center;font-size:12px;color:var(--text2)">
+      Tanlash: <input type="${reportRange==='month'?'month':reportRange==='year'?'number':'date'}" value="${getReportPickerVal()}" onchange="setReportPickerValue(this.value)" style="width:auto;display:inline-block;padding:3px 8px;font-size:12px;margin:0">
+    </div>
+  </div>`;
+
+  // AI Tahlil va Filtrlar
+  let aiText = '';
+  if(filtered.length === 0){
+    aiText = `Tanlangan davr (${label}) uchun hechkanday mos keluvchi tranzaksiya topilmadi.`;
+  } else {
+    aiText = `<b>Jami daromad:</b> ${fmt(incTot)} | <b>Jami xarajat:</b> ${fmt(expTot)}<br>` +
+      `<b>Sof moliyaviy natija:</b> <span style="color:${netTot>=0?'var(--income)':'var(--expense)'};font-weight:700">${fmtSigned(netTot)}</span><br>`;
+    if(incTot > 0 && netTot > 0){
+      const rate = Math.round((netTot / incTot) * 100);
+      aiText += `💡 Daromadingizning <b>${rate}%</b> qismi jamg'arilgan. Barqaror moliyaviy holat!<br>`;
+    } else if(expTot > incTot && incTot > 0){
+      aiText += `⚠️ Xarajat daromaddan <b>${fmt(expTot - incTot)}</b> so'mga ko'p. Resurslarni tejash tavsiya etiladi.<br>`;
+    }
+    if(excludedCashCount > 0 || excludedLargeCount > 0){
+      aiText += `🔍 <i>AI filtr ko'rsatkichi: ${excludedCashCount} ta naqd va ${excludedLargeCount} ta yirik operatsiya tahlildan istisno qilindi.</i>`;
+    }
+  }
+
+  html += `<div class="card">
+    <div class="between" style="margin-bottom:8px">
+      <h2>✨ AI Tahlil va Filtrlar</h2>
+    </div>
+    <div class="chips" style="margin-bottom:10px">
+      <span class="chip ${reportExcludeCash?'on':''}" onclick="toggleReportCash()">💵 Naqd pulsiz</span>
+      <span class="chip ${reportExcludeLarge?'on':''}" onclick="toggleReportLarge()">⚡ Yirik bitimlarsiz</span>
+    </div>
+    ${reportExcludeLarge ? `<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">Yirik summa chegarasi: <input type="number" value="${reportLargeThreshold}" onchange="setReportLargeThreshold(this.value)" style="width:130px;display:inline-block;padding:4px 8px;font-size:12px;margin-left:4px"> UZS</div>` : ''}
+    <div style="background:var(--card2);border-radius:12px;padding:12px;font-size:13px;line-height:1.5;color:var(--text)">
+      ${aiText}
+    </div>
+  </div>`;
+
+  // Summary Card (Daromad vs Xarajat)
+  html += `<div class="grid2">
+    ${stat('Daromad', fmt(incTot), '⬇️', 'var(--income)')}
+    ${stat('Xarajat', fmt(expTot), '⬆️', 'var(--expense)')}
+  </div>`;
+
+  // Category breakdown & Donut
+  if(!arr.length){
+    html += emptyBig('📊', 'Maʼlumot yoʼq', 'Ushbu filtr va davr uchun tranzaksiyalar mavjud emas');
+  } else {
+    html += `<div class="card">
+      <div style="font-weight:700;margin-bottom:12px;font-size:15px">${reportType==='expense'?'Xarajatlar taqsimoti':reportType==='income'?'Daromadlar taqsimoti':'Tranzaksiyalar taqsimoti'}</div>
+      ${donut(arr, currentTypeTot)}
+      <div class="legend" style="margin-top:14px">
+        ${arr.slice(0, 12).map(x => `<div class="li"><span class="dot" style="background:${x.c}"></span>${esc(x.n)}<span class="pct">${currentTypeTot>0 ? Math.round(x.v/currentTypeTot*100) : 0}% · ${compact(x.v)}</span></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  return html;
+}
 function donut(arr,tot){const R=52,C=2*Math.PI*R;let off=0;
-  const segs=arr.map(x=>{const len=x.v/tot*C;const s=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${x.c}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;off+=len;return s;}).join('');
+  const segs=arr.map(x=>{const len=tot>0?(x.v/tot*C):0;const s=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${x.c}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;off+=len;return s;}).join('');
   return `<svg viewBox="0 0 140 140" width="160" height="160" style="display:block;margin:0 auto">${segs}<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--text2)">Jami</text><text x="70" y="84" text-anchor="middle" font-size="13" font-weight="800" fill="var(--text)">${compact(tot)}</text></svg>`;}
 
 // ============ HISOBLAR ============
