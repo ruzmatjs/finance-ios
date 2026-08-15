@@ -134,12 +134,6 @@ struct AddTransactionView: View {
 
     private var detailsSection: some View {
         Section("Tafsilotlar") {
-            if type != .transfer {
-                Picker("Hisob", selection: $selectedAccount) {
-                    Text("Tanlang").tag(Account?.none)
-                    ForEach(accounts) { Text($0.name).tag(Account?.some($0)) }
-                }
-            }
             DatePicker("Sana", selection: $date, displayedComponents: [.date, .hourAndMinute])
             TextField("Merchant (ixtiyoriy)", text: $merchant)
             TextField("Izoh", text: $note, axis: .vertical).lineLimit(1...3)
