@@ -749,7 +749,6 @@ function txSheet(){const isT=form.type==='transfer';
   <div class="seg"><button class="${form.type==='expense'?'on':''}" onclick="fType('expense')">Xarajat</button>
     <button class="${form.type==='income'?'on':''}" onclick="fType('income')">Daromad</button>
     <button class="${form.type==='transfer'?'on':''}" onclick="fType('transfer')">Oʼtkazma</button></div>
-  ${!form.edit&&!isT?`<div class="ai"><span>✨</span><input id="nl" placeholder='Masalan: "Taksi 35000" yoki "Karta taksi 35000"' onkeydown="if(event.key==='Enter'){event.preventDefault();applyNL();}"><button type="button" onclick="applyNL()">Tahlil</button></div>`:''}
   <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatAmtInput(this)">
   ${isT?`<label class="fld">Qayerdan</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();" oninput="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
         <label class="fld">Qayerga</label><select id="toacc" onchange="form.toAccountId=this.value;saveFormInputs();" oninput="form.toAccountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.toAccountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>`
