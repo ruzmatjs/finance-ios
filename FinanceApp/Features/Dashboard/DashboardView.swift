@@ -31,7 +31,6 @@ struct DashboardView: View {
                         currencyCode: vm.currencyCode
                     )
 
-                    statsGrid(vm)
                     if !vm.weeklyPoints.isEmpty { spendingTrendCard(vm) }
                     if !vm.budgets.isEmpty { budgetSection(vm) }
                     if !vm.upcomingBills.isEmpty { upcomingSection(vm) }
@@ -45,20 +44,6 @@ struct DashboardView: View {
         .navigationTitle("Salom 👋")
         .navigationBarTitleDisplayMode(.large)
         .onAppear { setupAndLoad() }
-    }
-
-    // MARK: Statistika grid
-    private func statsGrid(_ vm: DashboardViewModel) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Spacing.sm) {
-            StatCard(title: "Oylik daromad", amount: vm.monthlyIncome,
-                     currencyCode: vm.currencyCode, icon: "arrow.down.left", tint: Theme.Colors.income)
-            StatCard(title: "Oylik xarajat", amount: vm.monthlyExpense,
-                     currencyCode: vm.currencyCode, icon: "arrow.up.right", tint: Theme.Colors.expense)
-            StatCard(title: "Jamgʻarma", amount: vm.savings,
-                     currencyCode: vm.currencyCode, icon: "banknote", tint: Theme.Colors.transfer)
-            StatCard(title: "Bugungi balans", amount: vm.todayBalance,
-                     currencyCode: vm.currencyCode, icon: "sun.max", tint: Theme.Colors.warning)
-        }
     }
 
     // MARK: Daromad va xarajat trendi (Swift Charts)

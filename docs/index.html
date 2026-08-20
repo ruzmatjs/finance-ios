@@ -278,26 +278,12 @@ function head(title,backTo){return `<div class="back" onclick="nav('${backTo}')"
 
 // ============ ASOSIY ============
 function viewHome(){
-  const inc=monthly('income'),exp=monthly('expense');
   const recent=[...state.tx].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
   const bpv=state.budgets.slice(0,2).map(budgetMini).join('');
   const up=upcoming();
   return `<h1>Salom 👋</h1>
   <div class="hero ${total()<0?'danger':''}"><div class="lbl">Umumiy balans</div><div class="amt mono">${fmt(total())}</div>
     <div class="sub">${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun</div></div>
-  <div class="grid2">
-    ${stat('Oylik daromad',fmt(inc),'⬇️','var(--income)')}
-    ${stat('Oylik xarajat',fmt(exp),'⬆️','var(--expense)')}
-    ${stat('Jamgʼarma',fmt(inc-exp),'💵','var(--transfer)')}
-    ${stat('Bugun',fmt(todayChange()),'☀️','var(--warn)')}</div>
-  <div class="card"><div class="between"><h2>Tez kirish</h2></div>
-    <div class="chips" style="margin-top:10px">
-      <span class="chip" onclick="nav('accounts')">🏦 Hisoblar</span>
-      <span class="chip" onclick="nav('budgets')">📊 Byudjet</span>
-      <span class="chip" onclick="nav('goals')">🎯 Maqsad</span>
-      <span class="chip" onclick="nav('recurring')">🔄 Takror</span>
-      <span class="chip" onclick="nav('calendar')">📅 Kalendar</span>
-      <span class="chip" onclick="nav('stats')">📈 Statistika</span></div></div>
   ${weeklyChart()}
   ${bpv?`<div class="card"><div class="between"><h2>Byudjetlar</h2><span class="link" onclick="nav('budgets')">Barchasi ›</span></div>${bpv}</div>`:''}
   ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}
