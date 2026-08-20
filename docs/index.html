@@ -271,11 +271,28 @@ function applyTheme(){const t=state.theme;
 
 // ============ Navigatsiya ============
 let tab='home',page='home';
-function go(t){tab=t;page=t;document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));render();haptic();}
-function nav(p){page=p;render();haptic();window.scrollTo(0,0);}
-function render(){const el=document.getElementById('app');const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
-  accounts:viewAccounts,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
-  el.innerHTML=v?v():viewHome();window.scrollTo(0,0);}
+function go(t){tab=t;page=t;document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));render(false);haptic();}
+function nav(p){page=p;render(false);haptic();}
+function render(keepScroll=true){
+  const scrollY=keepScroll?window.scrollY:0;
+  const catsScrollEl=document.getElementById('reportCats');
+  const catsScrollTop=(keepScroll&&catsScrollEl)?catsScrollEl.scrollTop:0;
+
+  const el=document.getElementById('app');
+  const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
+    accounts:viewAccounts,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
+  el.innerHTML=v?v():viewHome();
+
+  if(keepScroll){
+    window.scrollTo(0,scrollY);
+    const newCatsEl=document.getElementById('reportCats');
+    if(newCatsEl&&catsScrollTop>0){
+      newCatsEl.scrollTop=catsScrollTop;
+    }
+  }else{
+    window.scrollTo(0,0);
+  }
+}
 function head(title,backTo){return `<div class="back" onclick="nav('${backTo}')">‹ Orqaga</div><h1>${title}</h1>`}
 
 // ============ ASOSIY ============
