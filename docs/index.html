@@ -308,17 +308,17 @@ function viewHome(){
   const activeDebts=(state.debts||[]).filter(d=>d.status!=='settled');
   const lentTot=activeDebts.filter(d=>d.type==='lend').reduce((s,d)=>s+Math.max(0,d.amount-(d.paid||0)),0);
   const borrowedTot=activeDebts.filter(d=>d.type==='borrow').reduce((s,d)=>s+Math.max(0,d.amount-(d.paid||0)),0);
-  const debtsMini=activeDebts.length?`
-    <div class="card" onclick="nav('debts')">
+  const debtsMini=`
+    <div class="card" onclick="nav('debts')" style="cursor:pointer">
       <div class="between" style="margin-bottom:8px">
         <h2>🤝 Qarzlar</h2>
-        <span class="link" onclick="nav('debts')">Barchasi ›</span>
+        <span class="link">Barchasi ›</span>
       </div>
       <div class="grid2">
-        <div><div class="muted" style="font-size:11px">Mendan olishgan</div><b class="mono" style="color:var(--income);font-size:15px">+${fmt(lentTot)}</b></div>
-        <div><div class="muted" style="font-size:11px">Men olganman</div><b class="mono" style="color:var(--expense);font-size:15px">−${fmt(borrowedTot)}</b></div>
+        <div><div class="muted" style="font-size:11px">Mendan olishgan (Menga qarz)</div><b class="mono" style="color:var(--income);font-size:15px">+${fmt(lentTot)}</b></div>
+        <div><div class="muted" style="font-size:11px">Men olganman (Mening qarzim)</div><b class="mono" style="color:var(--expense);font-size:15px">−${fmt(borrowedTot)}</b></div>
       </div>
-    </div>`:'' ;
+    </div>`;
 
   return `<div class="hero ${total()<0?'danger':''}">
     <div class="between"><div class="lbl">Umumiy balans</div>
