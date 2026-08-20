@@ -45,8 +45,7 @@ struct DashboardView: View {
             .padding(.bottom, 120)
         }
         .background(Theme.Colors.background)
-        .navigationTitle("Salom 👋")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear { setupAndLoad() }
     }
 
