@@ -360,13 +360,6 @@ function weeklyChart(){
   const diff = selDay ? selDay.inc - selDay.exp : 0;
   
   return `<div class="card">
-    <div class="between" style="margin-bottom:8px">
-      <h2>Haftalik daromad va xarajat</h2>
-      <div style="font-size:11px;display:flex;gap:8px">
-        <span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--income);margin-right:3px"></i>Daromad</span>
-        <span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--expense);margin-right:3px"></i>Xarajat</span>
-      </div>
-    </div>
     <div id="chartInfo" style="background:var(--sep);border-radius:10px;padding:8px 12px;margin-bottom:10px">
       <div style="font-size:12px;font-weight:700;margin-bottom:2px">${selDay ? selDay.d.toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'short'}) : ''}</div>
       <div style="font-size:12px;display:flex;gap:12px;flex-wrap:wrap">

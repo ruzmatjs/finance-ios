@@ -53,19 +53,6 @@ struct DashboardView: View {
     private func spendingTrendCard(_ vm: DashboardViewModel) -> some View {
         let activePoint = selectedWeeklyPoint(vm)
         return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            HStack {
-                SectionHeader(title: "Haftalik daromad va xarajat")
-                Spacer()
-                HStack(spacing: 8) {
-                    Label("Daromad", systemImage: "circle.fill")
-                        .font(.caption2.bold())
-                        .foregroundStyle(Theme.Colors.income)
-                    Label("Xarajat", systemImage: "circle.fill")
-                        .font(.caption2.bold())
-                        .foregroundStyle(Theme.Colors.expense)
-                }
-            }
-
             if let pt = activePoint {
                 let diff = pt.income - pt.expense
                 VStack(alignment: .leading, spacing: 4) {
