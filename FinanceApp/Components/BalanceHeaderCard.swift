@@ -5,14 +5,33 @@ struct BalanceHeaderCard: View {
     let totalBalance: Double
     let todayChange: Double
     let currencyCode: String
+    var isHidden: Bool = false
+    var onToggleHidden: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Umumiy balans")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white.opacity(0.85))
+            HStack {
+                Text("Umumiy balans")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.85))
 
-            Text(CurrencyFormatter.string(totalBalance, code: currencyCode))
+                Spacer()
+
+                if let onToggle = onToggleHidden {
+                    Button {
+                        onToggle()
+                        Haptics.light()
+                    } label: {
+                        Image(systemName: isHidden ? "eye.slash.fill" : "eye.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.85))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text(isHidden ? "******" : CurrencyFormatter.string(totalBalance, code: currencyCode))
                 .font(Theme.Font.largeAmount)
                 .foregroundStyle(.white)
                 .minimumScaleFactor(0.6)
@@ -20,10 +39,15 @@ struct BalanceHeaderCard: View {
                 .contentTransition(.numericText())
 
             HStack(spacing: 6) {
-                Image(systemName: todayChange >= 0 ? "arrow.up.right" : "arrow.down.right")
-                Text(CurrencyFormatter.signed(todayChange, code: currencyCode))
-                Text("bugun")
-                    .foregroundStyle(.white.opacity(0.7))
+                if isHidden {
+                    Text("***")
+                        .foregroundStyle(.white.opacity(0.7))
+                } else {
+                    Image(systemName: todayChange >= 0 ? "arrow.up.right" : "arrow.down.right")
+                    Text(CurrencyFormatter.signed(todayChange, code: currencyCode))
+                    Text("bugun")
+                        .foregroundStyle(.white.opacity(0.7))
+                }
             }
             .font(.footnote.weight(.semibold))
             .foregroundStyle(.white)

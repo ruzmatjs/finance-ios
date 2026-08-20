@@ -28,7 +28,11 @@ struct DashboardView: View {
                     BalanceHeaderCard(
                         totalBalance: vm.totalBalance,
                         todayChange: vm.todayBalance,
-                        currencyCode: vm.currencyCode
+                        currencyCode: vm.currencyCode,
+                        isHidden: settings.hideBalance,
+                        onToggleHidden: {
+                            settings.hideBalance.toggle()
+                        }
                     )
 
                     if !vm.weeklyPoints.isEmpty { spendingTrendCard(vm) }

@@ -44,6 +44,9 @@ final class AppSettings {
     var hasCompletedOnboarding: Bool {
         didSet { defaults.set(hasCompletedOnboarding, forKey: Keys.onboarding) }
     }
+    var hideBalance: Bool {
+        didSet { defaults.set(hideBalance, forKey: Keys.hideBalance) }
+    }
 
     // Bildirishnomalar
     var notificationsEnabled: Bool {
@@ -72,6 +75,7 @@ final class AppSettings {
         self.appLockEnabled = defaults.bool(forKey: Keys.appLock)
         self.biometricsEnabled = defaults.bool(forKey: Keys.biometrics)
         self.hasCompletedOnboarding = defaults.bool(forKey: Keys.onboarding)
+        self.hideBalance = defaults.bool(forKey: Keys.hideBalance)
         self.notificationsEnabled = defaults.bool(forKey: Keys.notifications)
         self.dailyReminderHour = defaults.object(forKey: Keys.dailyHour) as? Int ?? 21
         self.monthlyReportEnabled = defaults.object(forKey: Keys.monthlyReport) as? Bool ?? true
@@ -85,6 +89,7 @@ final class AppSettings {
         static let appLock = "settings.appLock"
         static let biometrics = "settings.biometrics"
         static let onboarding = "settings.onboarding"
+        static let hideBalance = "settings.hideBalance"
         static let notifications = "settings.notifications"
         static let dailyHour = "settings.dailyReminderHour"
         static let monthlyReport = "settings.monthlyReport"

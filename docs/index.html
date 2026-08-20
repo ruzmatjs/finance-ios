@@ -154,6 +154,7 @@ function ensure(){
   state.budgets=state.budgets||[];
   state.goals=state.goals||[];
   state.recurring=state.recurring||[];
+  if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
 }
 
@@ -230,6 +231,7 @@ function accountBalance(id){
   return b;
 }
 function total(){return state.accounts.reduce((s,a)=>s+accountBalance(a.id),0)}
+function toggleHideBalance(){state.hideBalance=!state.hideBalance;save();render();haptic();}
 function monthly(type){const ms=monthStart().getTime();
   return state.tx.filter(t=>t.type===type&&new Date(t.date).getTime()>=ms).reduce((s,t)=>s+t.amount,0)}
 function todayChange(){const k=now().toDateString();
@@ -281,9 +283,17 @@ function viewHome(){
   const recent=[...state.tx].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
   const bpv=state.budgets.slice(0,2).map(budgetMini).join('');
   const up=upcoming();
+  const eyeIcon=state.hideBalance
+    ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
+    : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
   return `<h1>Salom 👋</h1>
-  <div class="hero ${total()<0?'danger':''}"><div class="lbl">Umumiy balans</div><div class="amt mono">${fmt(total())}</div>
-    <div class="sub">${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun</div></div>
+  <div class="hero ${total()<0?'danger':''}">
+    <div class="between"><div class="lbl">Umumiy balans</div>
+      <div onclick="toggleHideBalance()" style="cursor:pointer;opacity:.9;display:inline-flex;align-items:center;padding:2px 4px" title="Balansni koʻrsatish/yashirish">${eyeIcon}</div>
+    </div>
+    <div class="amt mono">${state.hideBalance ? '******' : fmt(total())}</div>
+    <div class="sub">${state.hideBalance ? '***' : `${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun`}</div>
+  </div>
   ${weeklyChart()}
   ${bpv?`<div class="card"><div class="between"><h2>Byudjetlar</h2><span class="link" onclick="nav('budgets')">Barchasi ›</span></div>${bpv}</div>`:''}
   ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}
@@ -602,10 +612,10 @@ function donut(arr,tot){const R=52,C=2*Math.PI*R;let off=0;
 // ============ HISOBLAR ============
 function viewAccounts(){
   return head('Hisoblar','settings')+
-    `<div class="card"><div class="between"><span class="muted">Umumiy balans</span><b class="mono" style="color:${total()<0?'var(--expense)':'var(--accent)'}">${fmt(total())}</b></div></div>`+
+    `<div class="card"><div class="between"><span class="muted">Umumiy balans</span><b class="mono" style="color:${total()<0?'var(--expense)':'var(--accent)'}">${state.hideBalance ? '******' : fmt(total())}</b></div></div>`+
     `<div class="card">${state.accounts.map(a=>`<div class="listrow" onclick="openAccount('${a.id}')">
       <div class="cic" style="background:${a.c}22">${a.e}</div><div style="flex:1"><div style="font-weight:600">${esc(a.name)}</div></div>
-      <b class="mono" style="color:${accountBalance(a.id)<0?'var(--expense)':'var(--text)'}">${fmt(accountBalance(a.id))}</b></div>`).join('')}</div>`+
+      <b class="mono" style="color:${accountBalance(a.id)<0?'var(--expense)':'var(--text)'}">${state.hideBalance ? '******' : fmt(accountBalance(a.id))}</b></div>`).join('')}</div>`+
     `<button class="btn" onclick="openAccount()">+ Hisob qoʼshish</button>`;
 }
 // ============ BYUDJETLAR ============
