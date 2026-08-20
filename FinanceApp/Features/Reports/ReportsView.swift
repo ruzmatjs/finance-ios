@@ -100,6 +100,9 @@ struct ReportsView: View {
             if !selectedCategories.isEmpty {
                 let catName = tx.category?.name ?? "Boshqa"
                 if !selectedCategories.contains(catName) { return false }
+            } else {
+                // Standart hisobotda qarzlar kiritilmaydi
+                if tx.category?.name == "Qarz" { return false }
             }
             return true
         }

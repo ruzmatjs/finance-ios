@@ -154,6 +154,7 @@ function ensure(){
   state.budgets=state.budgets||[];
   state.goals=state.goals||[];
   state.recurring=state.recurring||[];
+  state.debts=state.debts||[];
   if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
 }
@@ -233,7 +234,7 @@ function accountBalance(id){
 function total(){return state.accounts.reduce((s,a)=>s+accountBalance(a.id),0)}
 function toggleHideBalance(){state.hideBalance=!state.hideBalance;save();render();haptic();}
 function monthly(type){const ms=monthStart().getTime();
-  return state.tx.filter(t=>t.type===type&&new Date(t.date).getTime()>=ms).reduce((s,t)=>s+t.amount,0)}
+  return state.tx.filter(t=>t.type===type&&t.cat!=='Qarz'&&new Date(t.date).getTime()>=ms).reduce((s,t)=>s+t.amount,0)}
 function todayChange(){const k=now().toDateString();
   return state.tx.filter(t=>sameDay(t.date,now())).reduce((s,t)=>s+signed(t),0)}
 
@@ -280,7 +281,7 @@ function render(keepScroll=true){
 
   const el=document.getElementById('app');
   const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
-    accounts:viewAccounts,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
+    accounts:viewAccounts,debts:viewDebts,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
   el.innerHTML=v?v():viewHome();
 
   if(keepScroll){
@@ -303,6 +304,22 @@ function viewHome(){
   const eyeIcon=state.hideBalance
     ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
     : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+  
+  const activeDebts=(state.debts||[]).filter(d=>d.status!=='settled');
+  const lentTot=activeDebts.filter(d=>d.type==='lend').reduce((s,d)=>s+Math.max(0,d.amount-(d.paid||0)),0);
+  const borrowedTot=activeDebts.filter(d=>d.type==='borrow').reduce((s,d)=>s+Math.max(0,d.amount-(d.paid||0)),0);
+  const debtsMini=activeDebts.length?`
+    <div class="card" onclick="nav('debts')">
+      <div class="between" style="margin-bottom:8px">
+        <h2>🤝 Qarzlar</h2>
+        <span class="link" onclick="nav('debts')">Barchasi ›</span>
+      </div>
+      <div class="grid2">
+        <div><div class="muted" style="font-size:11px">Mendan olishgan</div><b class="mono" style="color:var(--income);font-size:15px">+${fmt(lentTot)}</b></div>
+        <div><div class="muted" style="font-size:11px">Men olganman</div><b class="mono" style="color:var(--expense);font-size:15px">−${fmt(borrowedTot)}</b></div>
+      </div>
+    </div>`:'' ;
+
   return `<div class="hero ${total()<0?'danger':''}">
     <div class="between"><div class="lbl">Umumiy balans</div>
       <div onclick="toggleHideBalance()" style="cursor:pointer;opacity:.9;display:inline-flex;align-items:center;padding:2px 4px" title="Balansni koʻrsatish/yashirish">${eyeIcon}</div>
@@ -311,6 +328,7 @@ function viewHome(){
     <div class="sub">${state.hideBalance ? '***' : `${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun`}</div>
   </div>
   ${weeklyChart()}
+  ${debtsMini}
   ${bpv?`<div class="card"><div class="between"><h2>Byudjetlar</h2><span class="link" onclick="nav('budgets')">Barchasi ›</span></div>${bpv}</div>`:''}
   ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}
   <div class="card"><div class="between" style="margin-bottom:8px"><h2>Soʼnggi tranzaksiyalar</h2><span class="link" onclick="go('list')">Barchasi ›</span></div>
@@ -344,8 +362,8 @@ function weeklyChart(){
   for(let i=6; i>=0; i--){
     const dd = new Date(d);
     dd.setDate(d.getDate() - i);
-    const inc = state.tx.filter(t => t.type === 'income' && sameDay(t.date, dd)).reduce((s,t) => s + t.amount, 0);
-    const exp = state.tx.filter(t => t.type === 'expense' && sameDay(t.date, dd)).reduce((s,t) => s + t.amount, 0);
+    const inc = state.tx.filter(t => t.type === 'income' && t.cat !== 'Qarz' && sameDay(t.date, dd)).reduce((s,t) => s + t.amount, 0);
+    const exp = state.tx.filter(t => t.type === 'expense' && t.cat !== 'Qarz' && sameDay(t.date, dd)).reduce((s,t) => s + t.amount, 0);
     chartData.push({ d: dd, inc, exp });
   }
   const max = Math.max(...chartData.map(x => Math.max(x.inc, x.exp)), 1);
@@ -524,6 +542,8 @@ function viewReport(){
     if(reportSelectedCats.length > 0){
       const catName = t.cat || 'Boshqa';
       if(!reportSelectedCats.includes(catName)) return false;
+    } else {
+      if(t.cat === 'Qarz') return false;
     }
     return true;
   });
@@ -662,6 +682,91 @@ function viewAccounts(){
       <b class="mono" style="color:${accountBalance(a.id)<0?'var(--expense)':'var(--text)'}">${state.hideBalance ? '******' : fmt(accountBalance(a.id))}</b></div>`).join('')}</div>`+
     `<button class="btn" onclick="openAccount()">+ Hisob qoʼshish</button>`;
 }
+// ============ QARZLAR ============
+let debtFilterTab = 'lend'; // 'lend', 'borrow', 'settled'
+function viewDebts(){
+  const allDebts = state.debts || [];
+  const activeDebts = allDebts.filter(d => d.status !== 'settled');
+  const lentTot = activeDebts.filter(d => d.type === 'lend').reduce((s, d) => s + Math.max(0, d.amount - (d.paid || 0)), 0);
+  const borrowedTot = activeDebts.filter(d => d.type === 'borrow').reduce((s, d) => s + Math.max(0, d.amount - (d.paid || 0)), 0);
+  const netDebt = lentTot - borrowedTot;
+
+  let currentList = [];
+  if(debtFilterTab === 'lend') {
+    currentList = allDebts.filter(d => d.type === 'lend' && d.status !== 'settled');
+  } else if(debtFilterTab === 'borrow') {
+    currentList = allDebts.filter(d => d.type === 'borrow' && d.status !== 'settled');
+  } else {
+    currentList = allDebts.filter(d => d.status === 'settled');
+  }
+
+  let html = head('Qarzlar', 'settings') +
+    `<div class="grid2">
+      <div class="card" style="margin-bottom:0">
+        <div class="muted" style="font-size:12px">Mendan olishgan (Menga qarz)</div>
+        <div class="v mono" style="color:var(--income);font-size:18px;font-weight:800;margin-top:4px">+${fmt(lentTot)}</div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <div class="muted" style="font-size:12px">Men olganman (Mening qarzim)</div>
+        <div class="v mono" style="color:var(--expense);font-size:18px;font-weight:800;margin-top:4px">−${fmt(borrowedTot)}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:10px 14px;margin-top:10px">
+      <div class="between"><span class="muted" style="font-size:13px">Sof qarz holati:</span><b class="mono" style="color:${netDebt>=0?'var(--income)':'var(--expense)'}">${fmtSigned(netDebt)}</b></div>
+    </div>
+    <div class="seg" style="margin:12px 0">
+      <button class="${debtFilterTab==='lend'?'on':''}" onclick="debtFilterTab='lend';render()">🟢 Mendan olganlar (${allDebts.filter(d=>d.type==='lend'&&d.status!=='settled').length})</button>
+      <button class="${debtFilterTab==='borrow'?'on':''}" onclick="debtFilterTab='borrow';render()">🔴 Men olganlar (${allDebts.filter(d=>d.type==='borrow'&&d.status!=='settled').length})</button>
+      <button class="${debtFilterTab==='settled'?'on':''}" onclick="debtFilterTab='settled';render()">✓ Yopilganlar (${allDebts.filter(d=>d.status==='settled').length})</button>
+    </div>`;
+
+  if(!currentList.length){
+    html += emptyBig('🤝', 'Qarzlar yoʻq', debtFilterTab==='lend'?'Sizdan qarz olganlar yoʻq':(debtFilterTab==='borrow'?'Siz olgan qarzlar yoʻq':'Yopilgan qarzlar tarixi mavjud emas'));
+  } else {
+    html += currentList.map(d => {
+      const remaining = Math.max(0, d.amount - (d.paid || 0));
+      const isLend = d.type === 'lend';
+      const isSettled = d.status === 'settled';
+      const acc = accBy(d.accountId);
+      const prog = d.amount > 0 ? Math.min(100, Math.round(((d.paid || 0) / d.amount) * 100)) : 0;
+      
+      return `<div class="card">
+        <div class="between" style="margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="cic" style="width:36px;height:36px;font-size:16px;background:${isLend?'var(--income)':'var(--expense)'}22">${isLend?'👤':'👥'}</div>
+            <div>
+              <div style="font-weight:700;font-size:15px">${esc(d.person)}</div>
+              <div class="meta muted" style="font-size:11px">${acc.e} ${acc.name} · ${fmtD(d.date)} ${d.dueDate ? `· Muddat: ${fmtD(d.dueDate)}` : ''}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="mono" style="font-weight:800;font-size:16px;color:${isSettled?'var(--text2)':(isLend?'var(--income)':'var(--expense)')}">${isSettled ? '✓ Yopildi' : fmt(remaining)}</div>
+            ${d.paid > 0 && !isSettled ? `<div class="meta muted" style="font-size:11px">Jami: ${fmt(d.amount)}</div>` : ''}
+          </div>
+        </div>
+        ${d.note ? `<div style="font-size:12px;color:var(--text2);margin:4px 0">${esc(d.note)}</div>` : ''}
+        ${d.paid > 0 && !isSettled ? `
+          <div class="prog" style="margin:8px 0 4px"><i style="width:${prog}%;background:${isLend?'var(--income)':'var(--expense)'}"></i></div>
+          <div class="between" style="font-size:11px;color:var(--text2)">
+            <span>Qaytarildi: ${compact(d.paid)} (${prog}%)</span>
+            <span>Qoldi: ${compact(remaining)}</span>
+          </div>
+        ` : ''}
+        <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep)">
+          ${!isSettled ? `
+            <button class="chip on" style="background:${isLend?'var(--income)':'var(--expense)'};border:none;padding:6px 14px" onclick="openRepay('${d.id}')">
+              ${isLend ? '📥 Qaytarib oldim' : '📤 Qaytarib berdim'}
+            </button>
+          ` : `<span style="font-size:12px;color:var(--income);font-weight:600">✓ Toʻliq qaytarilgan</span>`}
+          <span class="link" onclick="openDebt('${d.id}')" style="font-size:12px">Tahrirlash ›</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  html += `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
+  return html;
+}
 // ============ BYUDJETLAR ============
 function budgetSpent(b){const st=pStart(b.period).getTime();const set=new Set(b.catIds||[]);
   return state.tx.filter(t=>t.type==='expense'&&new Date(t.date).getTime()>=st&&(set.size===0||set.has(t.cat))).reduce((s,t)=>s+t.amount,0);}
@@ -725,11 +830,11 @@ function calShift(n){calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth(
 function calPick(iso){calSel=new Date(iso);render();haptic();}
 // ============ STATISTIKA ============
 function viewStats(){
-  const exp=state.tx.filter(t=>t.type==='expense');
+  const exp=state.tx.filter(t=>t.type==='expense'&&t.cat!=='Qarz');
   const daysSet=new Set(exp.map(t=>new Date(t.date).toDateString()));
   const avgD=exp.length?exp.reduce((s,t)=>s+t.amount,0)/Math.max(daysSet.size,1):0;
   const hiE=exp.reduce((m,t)=>t.amount>m?t.amount:m,0);
-  const inc=state.tx.filter(t=>t.type==='income');const hiI=inc.reduce((m,t)=>t.amount>m?t.amount:m,0);
+  const inc=state.tx.filter(t=>t.type==='income'&&t.cat!=='Qarz');const hiI=inc.reduce((m,t)=>t.amount>m?t.amount:m,0);
   // most used
   const cnt={};exp.forEach(t=>cnt[t.cat]=(cnt[t.cat]||0)+1);const most=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
   // monthly comparison 6
@@ -761,6 +866,7 @@ function viewSettings(){
   return `<h1>Sozlamalar</h1>
   <div class="card">
     <div class="listrow" role="button" tabindex="0" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('debts')">🤝 <span style="flex:1">Qarzlar (Berdilar / Oldilar)</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('budgets')">📊 <span style="flex:1">Byudjetlar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('goals')">🎯 <span style="flex:1">Maqsadlar</span> ›</div>
@@ -863,6 +969,183 @@ function saveAccount(){if(!form.name.trim())return;
   else state.accounts.push({id:genId(),name:form.name,e:form.e,c:form.c,opening:form.opening});
   save();closeSheet();render();}
 function delAccount(id){if(!confirm('Hisob oʼchirilsinmi?'))return;state.accounts=state.accounts.filter(a=>a.id!==id);save();closeSheet();render();}
+
+// ============ SHEET: Qarz (qoʼshish/tahrirlash) ============
+function openDebt(id){
+  const ex = id ? state.debts.find(d => d.id === id) : null;
+  form = ex ? { ...ex, edit: id } : {
+    type: debtFilterTab === 'borrow' ? 'borrow' : 'lend',
+    person: '',
+    amount: '',
+    paid: 0,
+    accountId: state.accounts[0].id,
+    dueDate: '',
+    note: '',
+    date: new Date().toISOString()
+  };
+  openSheet(debtSheet);
+  haptic('medium');
+}
+
+function debtSheet(){
+  return `<div class="between"><h2>${form.edit ? 'Qarzni tahrirlash' : 'Yangi qarz'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
+  <div class="seg">
+    <button class="${form.type==='lend'?'on':''}" onclick="form.type='lend';reSheet()">🟢 Men berdim (Mendan olishdi)</button>
+    <button class="${form.type==='borrow'?'on':''}" onclick="form.type='borrow';reSheet()">🔴 Men oldim (Menga berishdi)</button>
+  </div>
+  <label class="fld">Shaxs (Kimga / Kimdan)</label>
+  <input id="dperson" placeholder="Masalan: Ali, Akam, Rustam" value="${esc(form.person||'')}" oninput="form.person=this.value">
+  <label class="fld">Summa</label>
+  <input class="amtinput" id="damt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatDebtAmtInput(this)">
+  <label class="fld">${form.type==='lend'?'Qaysi hisobdan berildi':'Qaysi hisobga qabul qilindi'}</label>
+  <select id="dacc" onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
+  <label class="fld">Qaytarish muddati (Ixtiyoriy)</label>
+  <input type="date" id="ddue" value="${form.dueDate||''}" oninput="form.dueDate=this.value">
+  <label class="fld">Izoh</label>
+  <input id="dnote" placeholder="Ixtiyoriy izoh" value="${esc(form.note||'')}" oninput="form.note=this.value">
+  <button class="btn" onclick="saveDebt()">Saqlash</button>
+  ${form.edit ? `<button class="btn danger" onclick="delDebt('${form.edit}')">Oʻchirish</button>` : ''}`;
+}
+
+function formatDebtAmtInput(el){
+  const raw = el.value.replace(/\s/g,'').replace(/,/g,'.');
+  form.amount = raw;
+  formatAmtInput(el);
+}
+
+function saveDebt(){
+  const amt = parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;
+  if(amt <= 0 || !form.person || !form.person.trim()){
+    alert('Iltimos, ism va summani toʻgʻri kiriting');
+    return;
+  }
+  if(form.edit){
+    const d = state.debts.find(x => x.id === form.edit);
+    if(d){
+      d.person = form.person.trim();
+      d.amount = amt;
+      d.type = form.type;
+      d.accountId = form.accountId;
+      d.dueDate = form.dueDate || '';
+      d.note = form.note || '';
+      if((d.paid || 0) >= d.amount) d.status = 'settled';
+      else d.status = 'active';
+    }
+  } else {
+    const newDebt = {
+      id: genId(),
+      type: form.type,
+      person: form.person.trim(),
+      amount: amt,
+      paid: 0,
+      accountId: form.accountId,
+      dueDate: form.dueDate || '',
+      note: form.note || '',
+      date: new Date().toISOString(),
+      status: 'active'
+    };
+    state.debts.push(newDebt);
+    const txType = form.type === 'lend' ? 'expense' : 'income';
+    state.tx.push({
+      id: genId(),
+      type: txType,
+      amount: amt,
+      cat: 'Qarz',
+      accountId: form.accountId,
+      merchant: form.person.trim(),
+      note: form.type === 'lend' ? `Qarz berildi: ${form.person.trim()}` : `Qarz olindi: ${form.person.trim()}`,
+      date: new Date().toISOString(),
+      fav: false
+    });
+  }
+  save();
+  closeSheet();
+  notify('success');
+  render();
+}
+
+function delDebt(id){
+  if(!confirm('Qarz oʻchirilsinmi?')) return;
+  state.debts = state.debts.filter(d => d.id !== id);
+  save();
+  closeSheet();
+  notify('warning');
+  render();
+}
+
+// ============ SHEET: Qarzni qaytarish (Oldim / Berdim) ============
+let repayForm = {};
+function openRepay(debtId){
+  const d = state.debts.find(x => x.id === debtId);
+  if(!d) return;
+  const remaining = Math.max(0, d.amount - (d.paid || 0));
+  repayForm = {
+    debtId: d.id,
+    person: d.person,
+    type: d.type,
+    remaining: remaining,
+    amount: String(remaining),
+    accountId: d.accountId || state.accounts[0].id
+  };
+  openSheet(repaySheet);
+  haptic('medium');
+}
+
+function repaySheet(){
+  const isLend = repayForm.type === 'lend';
+  const title = isLend ? `Qarzni qaytarib olish (${esc(repayForm.person)})` : `Qarzni qaytarib berish (${esc(repayForm.person)})`;
+  const amtVal = parseFloat(String(repayForm.amount).replace(/[^\d.]/g,''))||0;
+  const btnText = isLend ? `📥 Qaytarib oldim (${fmt(amtVal)})` : `📤 Qaytarib berdim (${fmt(amtVal)})`;
+  
+  return `<div class="between"><h2>${title}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
+  <div style="background:var(--sep);border-radius:12px;padding:12px;margin:12px 0;font-size:13px">
+    <div class="between"><span class="muted">Qolgan umumiy qarz:</span><b class="mono">${fmt(repayForm.remaining)}</b></div>
+  </div>
+  <label class="fld">Qaytarilayotgan summa</label>
+  <input class="amtinput" id="repayAmt" inputmode="decimal" value="${fmtNumInput(repayForm.amount)}" oninput="formatRepayAmtInput(this)">
+  <label class="fld">${isLend ? 'Qaysi hisobga qabul qilindi' : 'Qaysi hisobdan toʻlandi'}</label>
+  <select id="repayAcc" onchange="repayForm.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${repayForm.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
+  <button class="btn" style="background:${isLend ? 'var(--income)' : 'var(--expense)'}" onclick="saveRepay()">${btnText}</button>`;
+}
+
+function formatRepayAmtInput(el){
+  const raw = el.value.replace(/\s/g,'').replace(/,/g,'.');
+  repayForm.amount = raw;
+  formatAmtInput(el);
+}
+
+function saveRepay(){
+  const amt = parseFloat(String(repayForm.amount).replace(/[^\d.]/g,''))||0;
+  if(amt <= 0){
+    alert('Iltimos, summani toʻgʻri kiriting');
+    return;
+  }
+  const d = state.debts.find(x => x.id === repayForm.debtId);
+  if(!d) return;
+
+  d.paid = (d.paid || 0) + amt;
+  if(d.paid >= d.amount){
+    d.status = 'settled';
+  }
+
+  const txType = d.type === 'lend' ? 'income' : 'expense';
+  state.tx.push({
+    id: genId(),
+    type: txType,
+    amount: amt,
+    cat: 'Qarz',
+    accountId: repayForm.accountId,
+    merchant: d.person,
+    note: d.type === 'lend' ? `Qarz qaytarildi: ${d.person}` : `Qarz toʻlandi: ${d.person}`,
+    date: new Date().toISOString(),
+    fav: false
+  });
+
+  save();
+  closeSheet();
+  notify('success');
+  render();
+}
 
 // ============ SHEET: Byudjet ============
 function openBudget(id){const ex=id?state.budgets.find(b=>b.id===id):null;

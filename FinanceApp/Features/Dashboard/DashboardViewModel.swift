@@ -67,9 +67,9 @@ final class DashboardViewModel {
             .filter { cal.isDateInToday($0.date) }
             .reduce(0) { $0 + $1.signedAmount }
 
-        // Oylik daromad/xarajat
+        // Oylik daromad/xarajat (Qarz hisobga olinmaydi)
         let monthInterval = cal.currentInterval(for: .monthly, reference: now)
-        let monthTx = all.filter { monthInterval.contains($0.date) }
+        let monthTx = all.filter { monthInterval.contains($0.date) && $0.category?.name != "Qarz" }
         monthlyIncome = monthTx.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
         monthlyExpense = monthTx.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
         savings = monthlyIncome - monthlyExpense
@@ -77,14 +77,14 @@ final class DashboardViewModel {
         // Soʻnggi tranzaksiyalar
         recentTransactions = Array(all.prefix(6))
 
-        // Haftalik daromad va xarajat trendi (soʻnggi 7 kun)
+        // Haftalik daromad va xarajat trendi (soʻnggi 7 kun, Qarz hisobga olinmaydi)
         let rawPoints: [(date: Date, inc: Double, exp: Double)] = (0..<7).reversed().compactMap { offset in
             guard let day = cal.date(byAdding: .day, value: -offset, to: now) else { return nil }
             let inc = all
-                .filter { $0.type == .income && cal.isDate($0.date, inSameDayAs: day) }
+                .filter { $0.type == .income && $0.category?.name != "Qarz" && cal.isDate($0.date, inSameDayAs: day) }
                 .reduce(0) { $0 + $1.amount }
             let exp = all
-                .filter { $0.type == .expense && cal.isDate($0.date, inSameDayAs: day) }
+                .filter { $0.type == .expense && $0.category?.name != "Qarz" && cal.isDate($0.date, inSameDayAs: day) }
                 .reduce(0) { $0 + $1.amount }
             return (day, inc, exp)
         }
