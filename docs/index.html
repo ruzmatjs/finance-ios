@@ -157,6 +157,47 @@ function ensure(){
   state.debts=state.debts||[];
   if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
+  syncHistoricalDebts();
+}
+
+function extractPersonFromTx(t){
+  let name = (t.merchant || '').trim();
+  if(!name || name === 'Qarz' || name === 'Qarzlar' || name === 'Oʼtkazma'){
+    name = (t.note || '').trim();
+  }
+  name = name.replace(/^Qarz\s*(berildi|olindi|qaytarildi|toʻlandi|to'landi)?\s*:\s*/i, '').trim();
+  if(!name || name.toLowerCase() === 'qarz' || name.toLowerCase() === 'boshqa') name = 'Shaxs (Qarz)';
+  return name;
+}
+
+function syncHistoricalDebts(){
+  state.debts = state.debts || [];
+  if(!state.tx || !state.tx.length) return;
+  state.tx.forEach(t => {
+    const isQarzCat = t.cat === 'Qarz';
+    const isQarzMerchant = t.merchant && t.merchant.toLowerCase().includes('qarz');
+    const isQarzNote = t.note && t.note.toLowerCase().includes('qarz');
+    if(isQarzCat || isQarzMerchant || isQarzNote){
+      const exists = state.debts.some(d => d.txId === t.id || (d.amount === t.amount && d.date === t.date));
+      if(!exists){
+        const isExp = t.type === 'expense';
+        const personName = extractPersonFromTx(t);
+        state.debts.push({
+          id: genId(),
+          txId: t.id,
+          type: isExp ? 'lend' : 'borrow',
+          person: personName,
+          amount: t.amount || 0,
+          paid: 0,
+          accountId: t.accountId || state.accounts[0].id,
+          dueDate: '',
+          note: t.note || '',
+          date: t.date || new Date().toISOString(),
+          status: 'active'
+        });
+      }
+    }
+  });
 }
 
 // ---- Telegram CloudStorage sync (barcha Telegram qurilmalarida) ----
@@ -700,7 +741,7 @@ function viewDebts(){
     currentList = allDebts.filter(d => d.status === 'settled');
   }
 
-  let html = head('Qarzlar', 'settings') +
+  let html = head('Qarzlar', tab || 'home') +
     `<div class="grid2">
       <div class="card" style="margin-bottom:0">
         <div class="muted" style="font-size:12px">Mendan olishgan (Menga qarz)</div>
@@ -950,9 +991,36 @@ function saveTx(){
     toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav,
     date:form.date||new Date().toISOString()};
   if(form.edit){const t=state.tx.find(x=>x.id===form.edit);Object.assign(t,obj);}
-  else{obj.id=genId();state.tx.push(obj);}
+  else{
+    obj.id=genId();
+    state.tx.push(obj);
+    if(obj.cat === 'Qarz'){
+      const isExp = obj.type === 'expense';
+      const personName = extractPersonFromTx(obj);
+      state.debts = state.debts || [];
+      state.debts.push({
+        id: genId(),
+        txId: obj.id,
+        type: isExp ? 'lend' : 'borrow',
+        person: personName,
+        amount: amt,
+        paid: 0,
+        accountId: obj.accountId,
+        dueDate: '',
+        note: obj.note || '',
+        date: obj.date,
+        status: 'active'
+      });
+    }
+  }
   save();closeSheet();notify('success');render();}
-function delTx(id){if(!confirm('Oʼchirilsinmi?'))return;state.tx=state.tx.filter(t=>t.id!==id);save();closeSheet();notify('warning');render();}
+function delTx(id){
+  if(!confirm('Oʼchirilsinmi?'))return;
+  state.tx=state.tx.filter(t=>t.id!==id);
+  if(state.debts){
+    state.debts = state.debts.filter(d=>d.txId!==id);
+  }
+  save();closeSheet();notify('warning');render();}
 
 // ============ SHEET: Hisob ============
 function openAccount(id){const ex=id?accBy(id):null;
