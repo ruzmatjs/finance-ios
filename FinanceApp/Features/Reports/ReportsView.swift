@@ -19,6 +19,7 @@ enum ReportTypeFilter: String, CaseIterable, Identifiable {
 struct ReportsView: View {
     @Environment(AppSettings.self) private var settings
     @Query private var transactions: [Transaction]
+    @Query private var allCategories: [Category]
 
     @State private var range: ReportRange = .month
     @State private var typeFilter: ReportTypeFilter = .expense
@@ -27,6 +28,7 @@ struct ReportsView: View {
     @State private var excludeCash: Bool = false
     @State private var excludeLarge: Bool = false
     @State private var largeThreshold: Double = 5_000_000
+    @State private var selectedCategories: Set<String> = []
     
     @State private var exportFile: ExportFile?
     @State private var showDatePicker: Bool = false
@@ -92,8 +94,19 @@ struct ReportsView: View {
         }
     }
 
-    private var scoped: [Transaction] {
+    /// Kategoriya filtri ham qoʻllangan tranzaksiyalar
+    private var categoryFilteredInPeriod: [Transaction] {
         filteredInPeriod.filter { tx in
+            if !selectedCategories.isEmpty {
+                let catName = tx.category?.name ?? "Boshqa"
+                if !selectedCategories.contains(catName) { return false }
+            }
+            return true
+        }
+    }
+
+    private var scoped: [Transaction] {
+        categoryFilteredInPeriod.filter { tx in
             switch typeFilter {
             case .expense: return tx.type == .expense
             case .income: return tx.type == .income
@@ -113,11 +126,11 @@ struct ReportsView: View {
     }
 
     private var totalIncome: Double {
-        filteredInPeriod.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
+        categoryFilteredInPeriod.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
     }
 
     private var totalExpense: Double {
-        filteredInPeriod.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
+        categoryFilteredInPeriod.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
     }
 
     private var netBalance: Double { totalIncome - totalExpense }
@@ -150,6 +163,9 @@ struct ReportsView: View {
 
                 // AI Tahlil va Filtrlar kartochkasi
                 aiAnalysisCard
+
+                // Kategoriyalar multi-select kartochkasi
+                categoryFilterCard
 
                 // Daromad vs Xarajat umumiy statistikasi
                 summaryCards
@@ -319,6 +335,89 @@ struct ReportsView: View {
             .padding(Theme.Spacing.sm)
             .background(Theme.Colors.secondaryBackground)
             .cornerRadius(Theme.Radius.sm)
+        }
+        .cardStyle()
+    }
+
+    // MARK: Category Multi-Select Filter Card
+    private var categoryFilterCard: some View {
+        let availableCategories: [Category] = allCategories.filter { cat in
+            switch typeFilter {
+            case .expense: return cat.kind == .expense
+            case .income: return cat.kind == .income
+            case .all: return true
+            }
+        }
+
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Label("Kategoriyalar filtri", systemImage: "line.3.horizontal.decrease.circle")
+                    .font(.headline)
+                    .foregroundStyle(Theme.Colors.accent)
+                Spacer()
+                if !selectedCategories.isEmpty {
+                    Button("Barchasi (\(selectedCategories.count))") {
+                        withAnimation { selectedCategories.removeAll() }
+                        Haptics.light()
+                    }
+                    .font(.caption.bold())
+                    .foregroundStyle(Theme.Colors.accent)
+                } else {
+                    Text("Barchasi tanlangan")
+                        .font(.caption)
+                        .foregroundStyle(Theme.Colors.secondaryText)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    Button {
+                        withAnimation { selectedCategories.removeAll() }
+                        Haptics.light()
+                    } label: {
+                        Text("Hammasi")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(selectedCategories.isEmpty ? Theme.Colors.accent : Theme.Colors.secondaryBackground)
+                            .foregroundStyle(selectedCategories.isEmpty ? .white : Theme.Colors.secondaryText)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    ForEach(availableCategories, id: \.id) { cat in
+                        let isSelected = selectedCategories.contains(cat.name)
+                        Button {
+                            withAnimation {
+                                if isSelected {
+                                    selectedCategories.remove(cat.name)
+                                } else {
+                                    selectedCategories.insert(cat.name)
+                                }
+                            }
+                            Haptics.light()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: cat.symbol)
+                                    .font(.caption2)
+                                Text(cat.name)
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(isSelected ? cat.color : Theme.Colors.secondaryBackground)
+                            .foregroundStyle(isSelected ? .white : Theme.Colors.primaryText)
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(isSelected ? Color.clear : Theme.Colors.separator, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
         .cardStyle()
     }

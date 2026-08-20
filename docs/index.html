@@ -422,12 +422,27 @@ let reportRefDate = new Date();
 let reportExcludeCash = false;
 let reportExcludeLarge = false;
 let reportLargeThreshold = 5000000;
+let reportSelectedCats = []; // empty means ALL categories
 
 function setReportType(t){ reportType=t; render(); haptic(); }
 function setReportRange(r){ reportRange=r; render(); haptic(); }
 function toggleReportCash(){ reportExcludeCash=!reportExcludeCash; render(); haptic(); }
 function toggleReportLarge(){ reportExcludeLarge=!reportExcludeLarge; render(); haptic(); }
 function setReportLargeThreshold(val){ reportLargeThreshold=Math.max(1000, Number(val)||5000000); render(); }
+function toggleReportCat(n){
+  if(n === 'ALL'){
+    reportSelectedCats = [];
+  } else {
+    const idx = reportSelectedCats.indexOf(n);
+    if(idx >= 0){
+      reportSelectedCats.splice(idx, 1);
+    } else {
+      reportSelectedCats.push(n);
+    }
+  }
+  render();
+  haptic();
+}
 
 function shiftReportPeriod(dir){
   const d = new Date(reportRefDate);
@@ -496,6 +511,10 @@ function viewReport(){
     if(reportExcludeLarge){
       if(t.amount >= reportLargeThreshold){ excludedLargeCount++; return false; }
     }
+    if(reportSelectedCats.length > 0){
+      const catName = t.cat || 'Boshqa';
+      if(!reportSelectedCats.includes(catName)) return false;
+    }
     return true;
   });
 
@@ -554,7 +573,7 @@ function viewReport(){
   // AI Tahlil va Filtrlar
   let aiText = '';
   if(filtered.length === 0){
-    aiText = `Tanlangan davr (${label}) uchun hechkanday mos keluvchi tranzaksiya topilmadi.`;
+    aiText = `Tanlangan davr (${label}) va kategoriyalar uchun hechkanday mos keluvchi tranzaksiya topilmadi.`;
   } else {
     aiText = `<b>Jami daromad:</b> ${fmt(incTot)} | <b>Jami xarajat:</b> ${fmt(expTot)}<br>` +
       `<b>Sof moliyaviy natija:</b> <span style="color:${netTot>=0?'var(--income)':'var(--expense)'};font-weight:700">${fmtSigned(netTot)}</span><br>`;
@@ -564,14 +583,14 @@ function viewReport(){
     } else if(expTot > incTot && incTot > 0){
       aiText += `⚠️ Xarajat daromaddan <b>${fmt(expTot - incTot)}</b> so'mga ko'p. Resurslarni tejash tavsiya etiladi.<br>`;
     }
-    if(excludedCashCount > 0 || excludedLargeCount > 0){
-      aiText += `🔍 <i>AI filtr ko'rsatkichi: ${excludedCashCount} ta naqd va ${excludedLargeCount} ta yirik operatsiya tahlildan istisno qilindi.</i>`;
+    if(excludedCashCount > 0 || excludedLargeCount > 0 || reportSelectedCats.length > 0){
+      aiText += `🔍 <i>Filtr: ${reportSelectedCats.length > 0 ? reportSelectedCats.length + ' ta kategoriya tanlangan, ' : ''}${excludedCashCount} ta naqd va ${excludedLargeCount} ta yirik operatsiya istisno qilindi.</i>`;
     }
   }
 
   html += `<div class="card">
     <div class="between" style="margin-bottom:8px">
-      <h2>✨ AI Tahlil va Filtrlar</h2>
+      <h2>✨ AI Tahlil va Qoʻshimcha Filtrlar</h2>
     </div>
     <div class="chips" style="margin-bottom:10px">
       <span class="chip ${reportExcludeCash?'on':''}" onclick="toggleReportCash()">💵 Naqd pulsiz</span>
@@ -580,6 +599,22 @@ function viewReport(){
     ${reportExcludeLarge ? `<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">Yirik summa chegarasi: <input type="number" value="${reportLargeThreshold}" onchange="setReportLargeThreshold(this.value)" style="width:130px;display:inline-block;padding:4px 8px;font-size:12px;margin-left:4px"> UZS</div>` : ''}
     <div style="background:var(--card2);border-radius:12px;padding:12px;font-size:13px;line-height:1.5;color:var(--text)">
       ${aiText}
+    </div>
+  </div>`;
+
+  // Kategoriyalar boʻyicha multi-select kartochkasi
+  const availCats = cats(reportType === 'all' ? null : reportType);
+  html += `<div class="card">
+    <div class="between" style="margin-bottom:8px">
+      <h2>🏷️ Kategoriyalar filtri (Multi-select)</h2>
+      ${reportSelectedCats.length > 0 ? `<span class="link" onclick="toggleReportCat('ALL')" style="font-size:12px">Barchasi (${reportSelectedCats.length} tanlangan)</span>` : `<span class="muted" style="font-size:12px">Barchasi tanlangan</span>`}
+    </div>
+    <div class="chips" style="max-height:160px;overflow-y:auto">
+      <span class="chip ${reportSelectedCats.length === 0 ? 'on' : ''}" onclick="toggleReportCat('ALL')">Hammasi</span>
+      ${availCats.map(c => {
+        const isSel = reportSelectedCats.includes(c.n);
+        return `<span class="chip ${isSel ? 'on' : ''}" onclick="toggleReportCat('${c.n.replace(/'/g, "\\'")}')">${c.e} ${esc(c.n)}</span>`;
+      }).join('')}
     </div>
   </div>`;
 
