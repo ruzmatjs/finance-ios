@@ -466,7 +466,6 @@ function head(title,backTo){return `<div class="back" onclick="nav('${backTo}')"
 
 // ============ ASOSIY ============
 function viewHome(){
-  const bpv=state.budgets.slice(0,2).map(budgetMini).join('');
   const up=upcoming();
   const eyeIcon=state.hideBalance
     ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
@@ -506,7 +505,6 @@ function viewHome(){
   </div>
   ${weeklyChart()}
   ${debtsMini}
-  ${bpv?`<div class="card"><div class="between"><h2>Byudjetlar</h2><span class="link" onclick="nav('budgets')">Barchasi ›</span></div>${bpv}</div>`:''}
   ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}`;
 }
 function stat(t,v,e,col){return `<div class="card stat"><div class="ic" style="background:${col}22;color:${col}">${e}</div><div class="t">${t}</div><div class="v mono">${v}</div></div>`}
@@ -1163,10 +1161,7 @@ function viewSettings(){
   <div class="card">
     <div class="listrow" role="button" tabindex="0" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('debts')">🤝 <span style="flex:1">Qarzlar (Berdilar / Oldilar)</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('wishlist')">🛍️ <span style="flex:1">Xaridlar rejasi (Wishlist)</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('budgets')">📊 <span style="flex:1">Byudjetlar</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('goals')">🎯 <span style="flex:1">Maqsadlar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('recurring')">🔄 <span style="flex:1">Takrorlanuvchi toʼlovlar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('calendar')">📅 <span style="flex:1">Kalendar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('stats')">📈 <span style="flex:1">Statistika</span> ›</div></div>
