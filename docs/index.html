@@ -168,6 +168,7 @@ function ensure(){
   state.goals=state.goals||[];
   state.recurring=state.recurring||[];
   state.debts=state.debts||[];
+  state.wishlist=state.wishlist||[];
   if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
 
@@ -190,6 +191,19 @@ function ensure(){
     d.dueDate = d.dueDate || '';
     d.note = d.note || '';
     d.date = d.date || new Date().toISOString();
+  });
+
+  // Ensure valid wishlist object structures
+  state.wishlist.forEach(w => {
+    w.id = w.id || genId();
+    w.title = (w.title || 'Buyum').trim();
+    w.price = parseFloat(w.price) || 0;
+    w.image = w.image || '';
+    w.cat = w.cat || 'Xarid';
+    w.priority = w.priority || 'medium';
+    w.status = w.status || 'planned';
+    w.note = w.note || '';
+    w.date = w.date || new Date().toISOString();
   });
 
   syncHistoricalDebts();
@@ -373,7 +387,7 @@ function render(keepScroll=true){
 
   const el=document.getElementById('app');
   const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
-    accounts:viewAccounts,debts:viewDebts,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
+    accounts:viewAccounts,debts:viewDebts,wishlist:viewWishlist,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
   el.innerHTML=v?v():viewHome();
 
   if(TG&&TG.BackButton){
@@ -400,7 +414,6 @@ function head(title,backTo){return `<div class="back" onclick="nav('${backTo}')"
 
 // ============ ASOSIY ============
 function viewHome(){
-  const recent=[...state.tx].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
   const bpv=state.budgets.slice(0,2).map(budgetMini).join('');
   const up=upcoming();
   const eyeIcon=state.hideBalance
@@ -442,9 +455,7 @@ function viewHome(){
   ${weeklyChart()}
   ${debtsMini}
   ${bpv?`<div class="card"><div class="between"><h2>Byudjetlar</h2><span class="link" onclick="nav('budgets')">Barchasi ›</span></div>${bpv}</div>`:''}
-  ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}
-  <div class="card"><div class="between" style="margin-bottom:8px"><h2>Soʼnggi tranzaksiyalar</h2><span class="link" onclick="go('list')">Barchasi ›</span></div>
-    ${recent.length?recent.map(t=>txRowClick(t)).join(''):emptyMini('Hozircha boʼsh')}</div>`;
+  ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}`;
 }
 function stat(t,v,e,col){return `<div class="card stat"><div class="ic" style="background:${col}22;color:${col}">${e}</div><div class="t">${t}</div><div class="v mono">${v}</div></div>`}
 function upcoming(){const wk=addP(now(),'weekly');return state.recurring.filter(r=>r.active!==false&&new Date(r.nextDue)<=wk).slice(0,3)}
@@ -904,6 +915,83 @@ function viewDebts(){
   html += `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
   return html;
 }
+// ============ XARIDLAR REJASI (WISHLIST) ============
+let wishFilterTab = 'planned'; // 'planned', 'bought'
+function viewWishlist(){
+  const all = state.wishlist || [];
+  const planned = all.filter(w => w.status !== 'bought');
+  const bought = all.filter(w => w.status === 'bought');
+  const plannedTot = planned.reduce((s, w) => s + (w.price || 0), 0);
+  const boughtTot = bought.reduce((s, w) => s + (w.price || 0), 0);
+
+  const currentList = wishFilterTab === 'planned' ? planned : bought;
+
+  let html = head('Xaridlar rejasi', 'settings') +
+    `<div class="card" style="margin-bottom:10px">
+      <div class="between">
+        <div>
+          <div class="muted" style="font-size:12px">Rejadagi jami summa</div>
+          <div class="v mono" style="color:var(--accent);font-size:22px;font-weight:800;margin-top:2px">${fmt(plannedTot)}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted" style="font-size:12px">Bajarilgan xaridlar</div>
+          <div class="v mono" style="color:var(--income);font-size:16px;font-weight:700;margin-top:2px">${fmt(boughtTot)}</div>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--sep);font-size:12px">
+        <div>🛍️ Rejada: <b>${planned.length} ta</b></div>
+        <div>✓ Olingan: <b>${bought.length} ta</b></div>
+      </div>
+    </div>
+    <div class="seg" style="margin:10px 0 14px">
+      <button class="${wishFilterTab==='planned'?'on':''}" onclick="wishFilterTab='planned';render()">🛍️ Rejada (${planned.length})</button>
+      <button class="${wishFilterTab==='bought'?'on':''}" onclick="wishFilterTab='bought';render()">✓ Olinganlar (${bought.length})</button>
+    </div>`;
+
+  if(!currentList.length){
+    html += emptyBig('🛍️', wishFilterTab==='planned'?'Rejalar yoʻq':'Olinganlar yoʻq', wishFilterTab==='planned'?'Olishni rejalashtirgan buyumlaringizni qoʻshing':'Hali sotib olingan buyumlar mavjud emas');
+  } else {
+    html += currentList.map(w => {
+      const isBought = w.status === 'bought';
+      const cat = catBy(w.cat, 'expense');
+      const prColor = w.priority === 'high' ? 'var(--expense)' : (w.priority === 'low' ? 'var(--text2)' : 'var(--warn)');
+      const prText = w.priority === 'high' ? '⭐⭐⭐ Yuqori' : (w.priority === 'low' ? '⭐ Oddiy' : '⭐⭐ Oʻrta');
+
+      return `<div class="card" style="padding:14px">
+        ${w.image ? `
+          <div style="width:100%;height:150px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:var(--sep)">
+            <img src="${w.image}" style="width:100%;height:100%;object-fit:cover;display:block" alt="${esc(w.title)}">
+          </div>
+        ` : ''}
+        <div class="between" style="align-items:flex-start;margin-bottom:6px">
+          <div>
+            <div style="font-weight:700;font-size:16px">${esc(w.title)}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
+              <span class="chip" style="font-size:11px;padding:2px 8px;background:${cat.c}22;color:${cat.c};border:none">${cat.e} ${esc(w.cat || 'Xarid')}</span>
+              <span class="chip" style="font-size:11px;padding:2px 8px;border:none;background:var(--sep);color:${prColor}">${prText}</span>
+            </div>
+          </div>
+          <div class="mono" style="font-weight:800;font-size:17px;color:${isBought?'var(--income)':'var(--accent)'}">${fmt(w.price)}</div>
+        </div>
+        ${w.note ? `<div style="font-size:12px;color:var(--text2);margin:6px 0">${esc(w.note)}</div>` : ''}
+        <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep)">
+          ${!isBought ? `
+            <button class="chip on" style="background:var(--income);border:none;padding:6px 14px" onclick="markWishBought('${w.id}')">✓ Sotib oldim</button>
+          ` : `
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px;color:var(--income);font-weight:600">✓ Olingan</span>
+              <button class="chip" style="font-size:11px;padding:3px 8px" onclick="markWishPlanned('${w.id}')">Rejaga qaytarish</button>
+            </div>
+          `}
+          <span class="link" onclick="openWishlist('${w.id}')" style="font-size:12px">Tahrirlash ›</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  html += `<button class="btn" onclick="openWishlist()">+ Yangi reja qoʻshish</button>`;
+  return html;
+}
 // ============ BYUDJETLAR ============
 function budgetSpent(b){const st=pStart(b.period).getTime();const set=new Set(b.catIds||[]);
   return state.tx.filter(t=>t.type==='expense'&&new Date(t.date).getTime()>=st&&(set.size===0||set.has(t.cat))).reduce((s,t)=>s+t.amount,0);}
@@ -931,13 +1019,31 @@ function ring(p,col,emoji){const R=34,C=2*Math.PI*R;const len=p*C;
   return `<svg viewBox="0 0 80 80" width="90" height="90" style="display:block;margin:0 auto"><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}22" stroke-width="8"/><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" transform="rotate(-90 40 40)"/><text x="40" y="46" text-anchor="middle" font-size="18">${emoji||''}</text></svg>`;}
 // ============ TAKRORLANUVCHI ============
 function viewRecurring(){
-  let html=head('Takrorlanuvchi','settings');
-  if(!state.recurring.length)html+=emptyBig('🔄','Yoʼq','Maosh, ijara yoki obunalarni avtomatlashtiring');
-  html+=state.recurring.map(r=>`<div class="card" onclick="openRecurring('${r.id}')"><div class="listrow" style="border:none;padding:0">
-    <div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div>
-    <div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${{daily:'Kunlik',weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[r.period]} · keyingi ${fmtD(r.nextDue)}</div></div>
-    <b class="mono" style="color:${r.type==='income'?'var(--income)':'var(--expense)'}">${r.type==='income'?'+':'−'}${fmt(r.amount)}</b></div></div>`).join('');
-  html+=`<button class="btn" onclick="openRecurring()">+ Qoʼshish</button>`;return html;}
+  let html = head('Takrorlanuvchi toʻlovlar', 'settings');
+  const list = state.recurring || [];
+  if(!list.length){
+    html += emptyBig('🔄', 'Toʻlovlar yoʻq', 'Maosh, ijara, obuna yoki kredit toʻlovlarini avtomatlashtiring');
+  } else {
+    html += list.map(r => {
+      const c = catBy(r.cat, r.type);
+      const isExp = r.type === 'expense';
+      const periodName = {daily:'Kunlik',weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[r.period] || r.period;
+      const acc = accBy(r.accountId);
+      return `<div class="card" onclick="openRecurring('${r.id}')" style="cursor:pointer">
+        <div class="listrow" style="border:none;padding:0">
+          <div class="cic" style="background:${c.c}22">${c.e}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:15px">${esc(r.title)}</div>
+            <div class="meta muted" style="font-size:12px;margin-top:2px">${periodName} · Keyingi: <b>${fmtD(r.nextDue)}</b> (${acc.name})</div>
+          </div>
+          <b class="mono" style="color:${isExp?'var(--expense)':'var(--income)'};font-size:15px">${isExp?'−':'+'}${fmt(r.amount)}</b>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  html += `<button class="btn" onclick="openRecurring()">+ Yangi toʻlov qoʻshish</button>`;
+  return html;
+}
 // ============ KALENDAR ============
 let calMonth=now(),calSel=now();
 function viewCalendar(){
@@ -1004,6 +1110,7 @@ function viewSettings(){
   <div class="card">
     <div class="listrow" role="button" tabindex="0" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('debts')">🤝 <span style="flex:1">Qarzlar (Berdilar / Oldilar)</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" onclick="nav('wishlist')">🛍️ <span style="flex:1">Xaridlar rejasi (Wishlist)</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('budgets')">📊 <span style="flex:1">Byudjetlar</span> ›</div>
     <div class="listrow" role="button" tabindex="0" onclick="nav('goals')">🎯 <span style="flex:1">Maqsadlar</span> ›</div>
@@ -1404,6 +1511,234 @@ function saveRepay(){
   render();
 }
 
+// ============ SHEET: Xaridlar rejasi (Wishlist) ============
+function openWishlist(id){
+  const ex = id ? (state.wishlist || []).find(w => w.id === id) : null;
+  form = ex ? { ...ex, edit: id } : {
+    title: '',
+    price: '',
+    image: '',
+    cat: 'Xarid',
+    priority: 'medium',
+    note: '',
+    status: 'planned'
+  };
+  openSheet(wishlistSheet);
+  haptic('medium');
+}
+
+function wishlistSheet(){
+  const expCats = cats('expense');
+  return `<div class="between"><h2>${form.edit ? 'Rejani tahrirlash' : 'Yangi xarid rejasi'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
+  <label class="fld">Nomi (Nima olmoqchisiz?)</label>
+  <input id="wtitle" placeholder="Masalan: iPhone 16 Pro, Mebel, Krossovka" value="${esc(form.title||'')}" oninput="form.title=this.value">
+  <label class="fld">Kutilayotgan narxi</label>
+  <input class="amtinput" id="wprice" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.price)}" oninput="formatWishAmtInput(this)">
+  
+  <label class="fld" style="margin-bottom:6px">Buyum rasmi</label>
+  <div id="wishImgPreview">
+    ${form.image ? `
+      <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px">
+        <img src="${form.image}" style="width:100%;height:100%;object-fit:cover;display:block">
+        <button type="button" onclick="removeWishImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+    ` : `
+      <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
+        <span style="font-size:20px">📷</span> <b style="font-size:13px;color:var(--accent)">Rasm biriktirish (Kamera / Galereya)</b>
+      </label>
+      <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+    `}
+  </div>
+
+  <label class="fld">Kategoriya</label>
+  <select id="wcat" onchange="form.cat=this.value">
+    ${expCats.map(c => `<option value="${c.n}" ${form.cat===c.n?'selected':''}>${c.e} ${c.n}</option>`).join('')}
+  </select>
+
+  <label class="fld">Muhimlik darajasi</label>
+  <div class="seg" style="margin-top:8px">
+    <button type="button" class="${form.priority==='high'?'on':''}" onclick="saveWishlistInputs();form.priority='high';reSheet()">⭐⭐⭐ Yuqori</button>
+    <button type="button" class="${(!form.priority||form.priority==='medium')?'on':''}" onclick="saveWishlistInputs();form.priority='medium';reSheet()">⭐⭐ Oʻrta</button>
+    <button type="button" class="${form.priority==='low'?'on':''}" onclick="saveWishlistInputs();form.priority='low';reSheet()">⭐ Oddiy</button>
+  </div>
+
+  <label class="fld">Izoh yoki Havola (Ixtiyoriy)</label>
+  <input id="wnote" placeholder="Doʻkon, model yoki havola" value="${esc(form.note||'')}" oninput="form.note=this.value">
+
+  <button class="btn" onclick="saveWishlist()">Saqlash</button>
+  ${form.edit ? `<button class="btn danger" onclick="delWishlist('${form.edit}')">Oʻchirish</button>` : ''}`;
+}
+
+function handleWishImage(el){
+  const file = el.files?.[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    alert('Iltimos, faqat rasm faylini tanlang');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const maxDim = 600;
+      let w = img.width;
+      let h = img.height;
+      if(w > maxDim || h > maxDim){
+        if(w > h){
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      form.image = compressedDataUrl;
+      const prev = document.getElementById('wishImgPreview');
+      if(prev){
+        prev.innerHTML = `
+          <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px">
+            <img src="${compressedDataUrl}" style="width:100%;height:100%;object-fit:cover;display:block">
+            <button type="button" onclick="removeWishImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
+          </div>
+        `;
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeWishImage(){
+  form.image = '';
+  const prev = document.getElementById('wishImgPreview');
+  if(prev){
+    prev.innerHTML = `
+      <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
+        <span style="font-size:20px">📷</span> <b style="font-size:13px;color:var(--accent)">Rasm biriktirish (Kamera / Galereya)</b>
+      </label>
+      <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+    `;
+  }
+}
+
+function saveWishlistInputs(){
+  const tEl = document.getElementById('wtitle'); if(tEl&&typeof tEl.value==='string') form.title = tEl.value;
+  const pEl = document.getElementById('wprice'); if(pEl&&typeof pEl.value==='string') form.price = pEl.value.replace(/\s/g,'').replace(/,/g,'.');
+  const cEl = document.getElementById('wcat'); if(cEl&&typeof cEl.value==='string') form.cat = cEl.value;
+  const nEl = document.getElementById('wnote'); if(nEl&&typeof nEl.value==='string') form.note = nEl.value;
+}
+
+function formatWishAmtInput(el){
+  const start = el.selectionStart;
+  const oldLen = el.value.length;
+  const raw = el.value.replace(/\s/g,'').replace(/,/g,'.');
+  const parts = raw.split('.');
+  if(parts[0]){parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  const formatted = parts.join('.');
+  el.value = formatted;
+  form.price = raw;
+  el.style.outline = 'none';
+  const diff = formatted.length - oldLen;
+  try{ el.setSelectionRange(start + diff, start + diff); }catch(e){}
+}
+
+function saveWishlist(){
+  saveWishlistInputs();
+  const price = parseFloat(String(form.price).replace(/[^\d.]/g,''))||0;
+  if(!form.title || !form.title.trim()){
+    const tEl = document.getElementById('wtitle');
+    if(tEl){ tEl.style.outline = '2px solid var(--expense)'; tEl.focus(); }
+    alert('Iltimos, buyum nomini kiriting');
+    return;
+  }
+  if(price <= 0){
+    const pEl = document.getElementById('wprice');
+    if(pEl){ pEl.style.outline = '2px solid var(--expense)'; pEl.focus(); }
+    alert('Iltimos, kutilayotgan narxni toʻgʻri kiriting');
+    return;
+  }
+
+  state.wishlist = state.wishlist || [];
+  if(form.edit){
+    const w = state.wishlist.find(x => x.id === form.edit);
+    if(w){
+      w.title = form.title.trim();
+      w.price = price;
+      w.image = form.image || '';
+      w.cat = form.cat || 'Xarid';
+      w.priority = form.priority || 'medium';
+      w.note = form.note ? form.note.trim() : '';
+    }
+  } else {
+    state.wishlist.push({
+      id: genId(),
+      title: form.title.trim(),
+      price: price,
+      image: form.image || '',
+      cat: form.cat || 'Xarid',
+      priority: form.priority || 'medium',
+      note: form.note ? form.note.trim() : '',
+      status: 'planned',
+      date: new Date().toISOString()
+    });
+  }
+
+  save();
+  closeSheet();
+  notify('success');
+  render();
+}
+
+function delWishlist(id){
+  if(!confirm('Rejadagi bu buyum oʻchirilsinmi?')) return;
+  state.wishlist = (state.wishlist || []).filter(w => w.id !== id);
+  save();
+  closeSheet();
+  notify('warning');
+  render();
+}
+
+function markWishBought(id){
+  const w = (state.wishlist || []).find(x => x.id === id);
+  if(!w) return;
+
+  const addTx = confirm(`"${w.title}" sotib olindi deb belgilansinmi?\n\n(OK — tranzaksiyalarga xarajat sifatida ham qoʻshiladi, Bekor qilish — faqat roʻyxatda olingan deb belgilanadi)`);
+  w.status = 'bought';
+
+  if(addTx){
+    state.tx.push({
+      id: genId(),
+      type: 'expense',
+      amount: w.price,
+      cat: w.cat || 'Xarid',
+      accountId: state.accounts[0]?.id || 'cash',
+      merchant: w.title,
+      note: `Xaridlar rejasidan: ${w.title}`,
+      date: new Date().toISOString(),
+      fav: false
+    });
+  }
+
+  save();
+  notify('success');
+  render();
+}
+
+function markWishPlanned(id){
+  const w = (state.wishlist || []).find(x => x.id === id);
+  if(!w) return;
+  w.status = 'planned';
+  save();
+  notify('light');
+  render();
+}
+
 // ============ SHEET: Byudjet ============
 function openBudget(id){const ex=id?state.budgets.find(b=>b.id===id):null;
   form=ex?{...ex,catIds:[...(ex.catIds||[])],edit:id}:{name:'',limit:'',period:'monthly',catIds:[],color:'#ff9500'};openSheet(budgetSheet);}
@@ -1445,22 +1780,150 @@ function openContribute(id){const g=state.goals.find(x=>x.id===id);form={gid:id,
 function doContribute(){const g=state.goals.find(x=>x.id===form.gid);g.current+=parseFloat(String(form.add).replace(/[^\d.]/g,''))||0;save();closeSheet();notify('success');render();}
 
 // ============ SHEET: Takrorlanuvchi ============
-function openRecurring(id){const ex=id?state.recurring.find(r=>r.id===id):null;
-  form=ex?{...ex,edit:id}:{title:'',type:'expense',amount:'',period:'monthly',cat:'Jarimalar',accountId:state.accounts[0].id,nextDue:new Date().toISOString()};openSheet(recurringSheet);}
-function recurringSheet(){return `<div class="between"><h2>${form.edit?'Qoida':'Yangi qoida'}</h2><span onclick="closeSheet()" style="font-size:22px">✕</span></div>
-  <label class="fld">Nomi</label><input value="${esc(form.title)}" oninput="form.title=this.value" placeholder="Masalan: Netflix">
-  <div class="seg" style="margin-top:12px"><button class="${form.type==='expense'?'on':''}" onclick="form.type='expense';openSheet(recurringSheet)">Xarajat</button><button class="${form.type==='income'?'on':''}" onclick="form.type='income';openSheet(recurringSheet)">Daromad</button></div>
-  <label class="fld">Summa</label><input inputmode="decimal" value="${fmtNumInput(form.amount)}" oninput="formatAmtInput(this)">
-  <label class="fld">Davr</label><select onchange="form.period=this.value">${['daily','weekly','monthly','yearly'].map(p=>`<option value="${p}" ${form.period===p?'selected':''}>${{daily:'Kunlik',weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[p]}</option>`).join('')}</select>
-  <label class="fld">Kategoriya</label><select onchange="form.cat=this.value">${cats(form.type).map(c=>`<option ${form.cat===c.n?'selected':''}>${c.n}</option>`).join('')}</select>
-  <label class="fld">Hisob</label><select onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
+function openRecurring(id){
+  const ex = id ? state.recurring.find(r => r.id === id) : null;
+  const defCat = cats('expense')[0]?.n || 'Xarid';
+  form = ex ? { ...ex, edit: id } : {
+    title: '',
+    type: 'expense',
+    amount: '',
+    period: 'monthly',
+    cat: defCat,
+    accountId: state.accounts[0]?.id || 'cash',
+    nextDue: toLocalInput(new Date()).slice(0, 10),
+    active: true
+  };
+  openSheet(recurringSheet);
+  haptic('medium');
+}
+
+function recurringSheet(){
+  const isExp = form.type === 'expense';
+  const currCats = cats(form.type);
+  if(!currCats.some(c => c.n === form.cat)){
+    form.cat = currCats[0]?.n || (isExp ? 'Xarid' : 'Maosh');
+  }
+  const dueDateVal = form.nextDue ? (form.nextDue.includes('T') ? form.nextDue.slice(0, 10) : form.nextDue) : toLocalInput(new Date()).slice(0, 10);
+
+  return `<div class="between"><h2>${form.edit ? 'Qoidani tahrirlash' : 'Yangi takrorlanuvchi toʻlov'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
+  <label class="fld">Nomi</label>
+  <input id="rtitle" value="${esc(form.title||'')}" oninput="form.title=this.value" placeholder="Masalan: Netflix, Ijara, Maosh">
+  
+  <div class="seg" style="margin-top:12px">
+    <button type="button" class="${isExp?'on':''}" onclick="saveRecurringInputs();form.type='expense';reSheet()">Xarajat</button>
+    <button type="button" class="${!isExp?'on':''}" onclick="saveRecurringInputs();form.type='income';reSheet()">Daromad</button>
+  </div>
+  
+  <label class="fld">Summa</label>
+  <input class="amtinput" id="ramt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatRecurringAmtInput(this)">
+  
+  <label class="fld">Davr (Qanchada takrorlanadi?)</label>
+  <select id="rperiod" onchange="form.period=this.value">
+    ${['daily','weekly','monthly','yearly'].map(p => `<option value="${p}" ${form.period===p?'selected':''}>${{daily:'Kunlik',weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[p]}</option>`).join('')}
+  </select>
+  
+  <label class="fld">Kategoriya</label>
+  <select id="rcat" onchange="form.cat=this.value">
+    ${currCats.map(c => `<option value="${c.n}" ${form.cat===c.n?'selected':''}>${c.e} ${c.n}</option>`).join('')}
+  </select>
+  
+  <label class="fld">${isExp ? 'Qaysi hisobdan yechiladi' : 'Qaysi hisobga tushadi'}</label>
+  <select id="racc" onchange="form.accountId=this.value">
+    ${state.accounts.map(a => `<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}
+  </select>
+
+  <label class="fld">Boshlanish / Keyingi toʻlov sanasi</label>
+  <input type="date" id="rdue" value="${dueDateVal}" oninput="form.nextDue=this.value">
+
   <button class="btn" onclick="saveRecurring()">Saqlash</button>
-  ${form.edit?`<button class="btn danger" onclick="delRecurring('${form.edit}')">Oʼchirish</button>`:''}`;}
-function saveRecurring(){const amt=parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;if(!form.title.trim()||amt<=0)return;
-  if(form.edit){const r=state.recurring.find(x=>x.id===form.edit);Object.assign(r,{title:form.title,type:form.type,amount:amt,period:form.period,cat:form.cat,accountId:form.accountId});}
-  else state.recurring.push({id:genId(),title:form.title,type:form.type,amount:amt,period:form.period,cat:form.cat,accountId:form.accountId,nextDue:form.nextDue,active:true});
-  save();closeSheet();render();}
-function delRecurring(id){if(!confirm('Oʼchirilsinmi?'))return;state.recurring=state.recurring.filter(r=>r.id!==id);save();closeSheet();render();}
+  ${form.edit ? `<button class="btn danger" onclick="delRecurring('${form.edit}')">Oʻchirish</button>` : ''}`;
+}
+
+function saveRecurringInputs(){
+  const tEl = document.getElementById('rtitle'); if(tEl && typeof tEl.value === 'string') form.title = tEl.value;
+  const aEl = document.getElementById('ramt'); if(aEl && typeof aEl.value === 'string') form.amount = aEl.value.replace(/\s/g,'').replace(/,/g,'.');
+  const pEl = document.getElementById('rperiod'); if(pEl && typeof pEl.value === 'string') form.period = pEl.value;
+  const cEl = document.getElementById('rcat'); if(cEl && typeof cEl.value === 'string') form.cat = cEl.value;
+  const accEl = document.getElementById('racc'); if(accEl && typeof accEl.value === 'string') form.accountId = accEl.value;
+  const dEl = document.getElementById('rdue'); if(dEl && typeof dEl.value === 'string') form.nextDue = dEl.value;
+}
+
+function formatRecurringAmtInput(el){
+  const start = el.selectionStart;
+  const oldLen = el.value.length;
+  const raw = el.value.replace(/\s/g,'').replace(/,/g,'.');
+  const parts = raw.split('.');
+  if(parts[0]){parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  const formatted = parts.join('.');
+  el.value = formatted;
+  form.amount = raw;
+  el.style.outline = 'none';
+  const diff = formatted.length - oldLen;
+  try{ el.setSelectionRange(start + diff, start + diff); }catch(e){}
+}
+
+function saveRecurring(){
+  saveRecurringInputs();
+  const amt = parseFloat(String(form.amount).replace(/[^\d.]/g,'')) || 0;
+  if(!form.title || !form.title.trim()){
+    const tEl = document.getElementById('rtitle');
+    if(tEl){ tEl.style.outline = '2px solid var(--expense)'; tEl.focus(); }
+    alert('Iltimos, toʻlov nomini kiriting');
+    return;
+  }
+  if(amt <= 0){
+    const aEl = document.getElementById('ramt');
+    if(aEl){ aEl.style.outline = '2px solid var(--expense)'; aEl.focus(); }
+    alert('Iltimos, toʻlov summasini toʻgʻri kiriting');
+    return;
+  }
+
+  let nextDueDate = form.nextDue ? new Date(form.nextDue) : new Date();
+  if(isNaN(nextDueDate.getTime())) nextDueDate = new Date();
+
+  state.recurring = state.recurring || [];
+  if(form.edit){
+    const r = state.recurring.find(x => x.id === form.edit);
+    if(r){
+      Object.assign(r, {
+        title: form.title.trim(),
+        type: form.type || 'expense',
+        amount: amt,
+        period: form.period || 'monthly',
+        cat: form.cat || (form.type === 'income' ? 'Maosh' : 'Xarid'),
+        accountId: form.accountId || state.accounts[0]?.id || 'cash',
+        nextDue: nextDueDate.toISOString(),
+        active: form.active !== false
+      });
+    }
+  } else {
+    state.recurring.push({
+      id: genId(),
+      title: form.title.trim(),
+      type: form.type || 'expense',
+      amount: amt,
+      period: form.period || 'monthly',
+      cat: form.cat || (form.type === 'income' ? 'Maosh' : 'Xarid'),
+      accountId: form.accountId || state.accounts[0]?.id || 'cash',
+      nextDue: nextDueDate.toISOString(),
+      active: true
+    });
+  }
+
+  save();
+  closeSheet();
+  notify('success');
+  render();
+}
+
+function delRecurring(id){
+  if(!confirm('Takrorlanuvchi toʻlov oʻchirilsinmi?')) return;
+  state.recurring = (state.recurring || []).filter(r => r.id !== id);
+  save();
+  closeSheet();
+  notify('warning');
+  render();
+}
 
 // ============ SHEET: Kategoriya ============
 function openCategory(idx){const ex=(idx!=null)?state.cats[idx]:null;
