@@ -422,12 +422,22 @@ function viewHome(){
       </div>
     </div>`;
 
+  const todayCh = todayChange();
+  let todayBadge = '';
+  if (state.hideBalance) {
+    todayBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(255,255,255,0.2);color:#fff">*** bugun</span>`;
+  } else if (todayCh >= 0) {
+    todayBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(52,199,89,0.28);color:#4cd964;border:1px solid rgba(52,199,89,0.45)">▲ +${fmt(todayCh)} bugun</span>`;
+  } else {
+    todayBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(255,59,48,0.28);color:#ff7b75;border:1px solid rgba(255,59,48,0.45)">▼ −${fmt(Math.abs(todayCh))} bugun</span>`;
+  }
+
   return `<div class="hero ${total()<0?'danger':''}">
     <div class="between"><div class="lbl">Umumiy balans</div>
       <div onclick="toggleHideBalance()" style="cursor:pointer;opacity:.9;display:inline-flex;align-items:center;padding:2px 4px" title="Balansni koʻrsatish/yashirish">${eyeIcon}</div>
     </div>
     <div class="amt mono">${state.hideBalance ? '******' : fmt(total())}</div>
-    <div class="sub">${state.hideBalance ? '***' : `${todayChange()>=0?'▲':'▼'} ${fmtSigned(todayChange())} bugun`}</div>
+    <div style="margin-top:6px">${todayBadge}</div>
   </div>
   ${weeklyChart()}
   ${debtsMini}
@@ -440,6 +450,20 @@ function stat(t,v,e,col){return `<div class="card stat"><div class="ic" style="b
 function upcoming(){const wk=addP(now(),'weekly');return state.recurring.filter(r=>r.active!==false&&new Date(r.nextDue)<=wk).slice(0,3)}
 let chartSelIdx = 6;
 let chartData = [];
+
+function chartDayTxHtml(dayDate){
+  if(!dayDate) return '';
+  const dayTxs = state.tx.filter(t => sameDay(t.date, dayDate)).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const df = dayDate.toLocaleDateString('ru-RU', {weekday: 'short', day: 'numeric', month: 'short'});
+  if (!dayTxs.length) {
+    return `<div class="muted" style="text-align:center;font-size:12px;padding:8px 0">${df} kuni tranzaksiyalar mavjud emas</div>`;
+  }
+  return `<div class="between" style="margin-bottom:6px">
+    <span style="font-size:12px;font-weight:700;color:var(--text2)">${df} tranzaksiyalari (${dayTxs.length} ta)</span>
+  </div>
+  ${dayTxs.map(t => txRowClick(t)).join('')}`;
+}
+
 function pickChartDay(idx){
   chartSelIdx = idx;
   const d = chartData[idx];
@@ -456,6 +480,14 @@ function pickChartDay(idx){
   document.querySelectorAll('.daycol').forEach((col, i)=>{
     col.style.background = i === idx ? 'var(--sep)' : 'transparent';
   });
+  document.querySelectorAll('#chartWeekdays .bl').forEach((lbl, i)=>{
+    lbl.style.fontWeight = i === idx ? '800' : '400';
+    lbl.style.color = i === idx ? 'var(--accent)' : 'var(--text2)';
+  });
+  const txCont = document.getElementById('chartTxContainer');
+  if(txCont && d){
+    txCont.innerHTML = chartDayTxHtml(d.d);
+  }
   haptic();
 }
 function weeklyChart(){
@@ -496,8 +528,11 @@ function weeklyChart(){
         </div>
       `).join('')}
     </div>
-    <div class="row" style="gap:6px;margin-top:4px">
+    <div id="chartWeekdays" class="row" style="gap:6px;margin-top:4px">
       ${chartData.map((x, i) => `<div class="bl" style="flex:1;font-weight:${i===chartSelIdx?'800':'400'};color:${i===chartSelIdx?'var(--accent)':'var(--text2)'}">${wd[x.d.getDay()]}</div>`).join('')}
+    </div>
+    <div id="chartTxContainer" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--sep)">
+      ${selDay ? chartDayTxHtml(selDay.d) : ''}
     </div>
   </div>`;
 }
