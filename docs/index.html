@@ -126,19 +126,17 @@ const DEF_CATS=[
  {n:'Frilans',e:'💻',c:'#00c7be',t:'income'},{n:'Investitsiya',e:'📈',c:'#32ade6',t:'income'},
  {n:'Sovgʼa',e:'🎀',c:'#af52de',t:'income'},{n:'Qarz',e:'🤝',c:'#34c759',t:'income'},{n:'Boshqa',e:'➕',c:'#8e8e93',t:'income'},
  {n:'Ovqat',e:'🍔',c:'#ff9500',t:'expense'},{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'},
+ {n:'Uydagilar',e:'👨‍👩‍👧‍👦',c:'#af52de',t:'expense'},
  {n:'Qarz',e:'🤝',c:'#ff9500',t:'expense'},{n:'Kredit',e:'💳',c:'#ff2d55',t:'expense'},
- {n:'Restoran',e:'🍽️',c:'#ff375f',t:'expense'},{n:'Transport',e:'🚌',c:'#0a84ff',t:'expense'},
- {n:'Taksi',e:'🚕',c:'#ffd60a',t:'expense'},{n:'Yoqilgʼi',e:'⛽',c:'#ff453a',t:'expense'},
- {n:'Xarid',e:'🛍️',c:'#ff2d55',t:'expense'},{n:'Kiyim',e:'👕',c:'#bf5af2',t:'expense'},
- {n:'Texnika',e:'📱',c:'#5856d6',t:'expense'},{n:'Koʼngilochar',e:'🎮',c:'#af52de',t:'expense'},
+ {n:'Transport',e:'🚌',c:'#0a84ff',t:'expense'},{n:'Yoqilgʼi',e:'⛽',c:'#ff453a',t:'expense'},
+ {n:'Xarid',e:'🛍️',c:'#ff2d55',t:'expense'},{n:'Koʼngilochar',e:'🎮',c:'#af52de',t:'expense'},
  {n:'Salomatlik',e:'❤️',c:'#ff3b30',t:'expense'},{n:'Dorixona',e:'💊',c:'#ff6482',t:'expense'},
- {n:'Jarimalar',e:'👮',c:'#ff453a',t:'expense'},{n:'Sayohat',e:'✈️',c:'#64d2ff',t:'expense'},
- {n:'Kommunal',e:'💡',c:'#ffcc00',t:'expense'},{n:'Internet',e:'🌐',c:'#0a84ff',t:'expense'},
+ {n:'Jarimalar',e:'👮',c:'#ff453a',t:'expense'},{n:'Internet',e:'🌐',c:'#0a84ff',t:'expense'},
  {n:'Aloqa',e:'📶',c:'#30b0c7',t:'expense'},
  {n:'Boshqa',e:'📦',c:'#8e8e93',t:'expense'},
 ];
 const PALETTE=['#ff3b30','#ff9500','#ffcc00','#34c759','#00c7be','#0a84ff','#5856d6','#af52de','#ff2d55','#a2845e','#8e8e93','#64d2ff'];
-const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵','👮','📜'];
+const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','👨‍👩‍👧‍👦','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵','👮','📜'];
 
 // ============ Holat ============
 let state=load()||{};
@@ -152,21 +150,67 @@ function ensure(){
   state.currency=state.currency||'UZS';
   state.theme=state.theme||'system';
   state.cats=state.cats||DEF_CATS.map(c=>({...c}));
-  const removedNames=['Kafe','Kofe','Sport','Ijara'];
+  const removedNames=['Kafe','Kofe','Sport','Ijara','Restoran','Taksi','Kiyim','Texnika','Sayohat','Kommunal'];
   state.cats=state.cats.filter(c=>!removedNames.includes(c.n));
+
+  // Migrate category data across state
+  state.tx.forEach(t=>{
+    if(t.cat==='Restoran') t.cat='Ovqat';
+    else if(t.cat==='Taksi') t.cat='Transport';
+    else if(t.cat==='Kiyim'||t.cat==='Texnika') t.cat='Xarid';
+    else if(t.cat==='Kommunal') t.cat='Uydagilar';
+    else if(t.cat==='Sayohat') t.cat='Boshqa';
+  });
+
+  state.recurring=state.recurring||[];
+  state.recurring.forEach(r=>{
+    if(r.cat==='Restoran') r.cat='Ovqat';
+    else if(r.cat==='Taksi') r.cat='Transport';
+    else if(r.cat==='Kiyim'||r.cat==='Texnika') r.cat='Xarid';
+    else if(r.cat==='Kommunal') r.cat='Uydagilar';
+    else if(r.cat==='Sayohat') r.cat='Boshqa';
+  });
+
+  state.wishlist=state.wishlist||[];
+  state.wishlist.forEach(w=>{
+    if(w.cat==='Restoran') w.cat='Ovqat';
+    else if(w.cat==='Taksi') w.cat='Transport';
+    else if(w.cat==='Kiyim'||w.cat==='Texnika') w.cat='Xarid';
+    else if(w.cat==='Kommunal') w.cat='Uydagilar';
+    else if(w.cat==='Sayohat') w.cat='Xarid';
+  });
+
+  state.budgets=state.budgets||[];
+  state.budgets.forEach(b=>{
+    if(Array.isArray(b.catIds)){
+      b.catIds=b.catIds.map(c=>{
+        if(c==='Restoran') return 'Ovqat';
+        if(c==='Taksi') return 'Transport';
+        if(c==='Kiyim'||c==='Texnika') return 'Xarid';
+        if(c==='Kommunal') return 'Uydagilar';
+        if(c==='Sayohat') return 'Boshqa';
+        return c;
+      });
+      b.catIds=[...new Set(b.catIds)].filter(c=>!removedNames.includes(c));
+    }
+  });
+
+  if(!state.cats.some(c=>c.n==='Uydagilar'&&c.t==='expense')){
+    state.cats.splice(9,0,{n:'Uydagilar',e:'👨‍👩‍👧‍👦',c:'#af52de',t:'expense'});
+  }
   if(!state.cats.some(c=>c.n==='Jarimalar'&&c.t==='expense')){
     state.cats.push({n:'Jarimalar',e:'👮',c:'#ff453a',t:'expense'});
   }
-  if(!state.cats.some(c=>c.n==='Ichimliklar')){state.cats.splice(7,0,{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'});}
+  if(!state.cats.some(c=>c.n==='Ichimliklar'&&c.t==='expense')){
+    state.cats.splice(8,0,{n:'Ichimliklar',e:'🥤',c:'#00c7be',t:'expense'});
+  }
   if(!state.cats.some(c=>c.n==='Qarz'&&c.t==='expense')){state.cats.push({n:'Qarz',e:'🤝',c:'#ff9500',t:'expense'});}
   if(!state.cats.some(c=>c.n==='Kredit'&&c.t==='expense')){state.cats.push({n:'Kredit',e:'💳',c:'#ff2d55',t:'expense'});}
   if(!state.cats.some(c=>c.n==='Qarz'&&c.t==='income')){state.cats.push({n:'Qarz',e:'🤝',c:'#34c759',t:'income'});}
   if(!state.accounts){state.accounts=[
     {id:'cash',name:'Naqd',e:'💵',c:'#34c759',opening:0},
     {id:'card',name:'Bank karta',e:'💳',c:'#0a84ff',opening:0}];}
-  state.budgets=state.budgets||[];
   state.goals=state.goals||[];
-  state.recurring=state.recurring||[];
   state.debts=state.debts||[];
   state.wishlist=state.wishlist||[];
   if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
@@ -355,14 +399,21 @@ function runRecurring(){
 }
 
 // ============ NL parser ============
-const KW={taksi:['Taksi','expense'],taxi:['Taksi','expense'],ovqat:['Ovqat','expense'],food:['Ovqat','expense'],
- suv:['Ichimliklar','expense'],ichimlik:['Ichimliklar','expense'],ichimliklar:['Ichimliklar','expense'],water:['Ichimliklar','expense'],
- qarz:['Qarz','expense'],debt:['Qarz','expense'],kredit:['Kredit','expense'],credit:['Kredit','expense'],loan:['Kredit','expense'],restoran:['Restoran','expense'],
- benzin:['Yoqilgʼi','expense'],xarid:['Xarid','expense'],kiyim:['Kiyim','expense'],dori:['Dorixona','expense'],
- jarima:['Jarimalar','expense'],jarimalar:['Jarimalar','expense'],fine:['Jarimalar','expense'],penalty:['Jarimalar','expense'],
- internet:['Internet','expense'],aloqa:['Aloqa','expense'],
- sayohat:['Sayohat','expense'],maosh:['Maosh','income'],salary:['Maosh','income'],bonus:['Bonus','income'],
- frilans:['Frilans','income'],sovga:['Sovgʼa','income']};
+const KW={
+ taksi:['Transport','expense'],taxi:['Transport','expense'],yandex:['Transport','expense'],transport:['Transport','expense'],avtobus:['Transport','expense'],metro:['Transport','expense'],
+ ovqat:['Ovqat','expense'],food:['Ovqat','expense'],restoran:['Ovqat','expense'],restaurant:['Ovqat','expense'],kafe:['Ovqat','expense'],lavash:['Ovqat','expense'],osh:['Ovqat','expense'],shashlik:['Ovqat','expense'],tushlik:['Ovqat','expense'],kechki:['Ovqat','expense'],nonushta:['Ovqat','expense'],bozorlik:['Ovqat','expense'],
+ suv:['Ichimliklar','expense'],ichimlik:['Ichimliklar','expense'],ichimliklar:['Ichimliklar','expense'],water:['Ichimliklar','expense'],kofe:['Ichimliklar','expense'],coffee:['Ichimliklar','expense'],choy:['Ichimliklar','expense'],
+ uydagilar:['Uydagilar','expense'],oila:['Uydagilar','expense'],oilaga:['Uydagilar','expense'],uyga:['Uydagilar','expense'],uy:['Uydagilar','expense'],ota:['Uydagilar','expense'],ona:['Uydagilar','expense'],onam:['Uydagilar','expense'],otam:['Uydagilar','expense'],akam:['Uydagilar','expense'],ukam:['Uydagilar','expense'],singlim:['Uydagilar','expense'],opam:['Uydagilar','expense'],bolalar:['Uydagilar','expense'],farzand:['Uydagilar','expense'],kommunal:['Uydagilar','expense'],svet:['Uydagilar','expense'],gaz:['Uydagilar','expense'],
+ qarz:['Qarz','expense'],debt:['Qarz','expense'],kredit:['Kredit','expense'],credit:['Kredit','expense'],loan:['Kredit','expense'],
+ benzin:['Yoqilgʼi','expense'],zapravka:['Yoqilgʼi','expense'],metan:['Yoqilgʼi','expense'],propan:['Yoqilgʼi','expense'],gazoyoq:['Yoqilgʼi','expense'],
+ xarid:['Xarid','expense'],bozor:['Xarid','expense'],kiyim:['Xarid','expense'],poyabzal:['Xarid','expense'],texnika:['Xarid','expense'],telefon:['Xarid','expense'],kompyuter:['Xarid','expense'],
+ dori:['Dorixona','expense'],apteka:['Dorixona','expense'],dorixona:['Dorixona','expense'],doktor:['Salomatlik','expense'],shifoxona:['Salomatlik','expense'],davolanish:['Salomatlik','expense'],
+ jarima:['Jarimalar','expense'],jarimalar:['Jarimalar','expense'],fine:['Jarimalar','expense'],penalty:['Jarimalar','expense'],gai:['Jarimalar','expense'],radar:['Jarimalar','expense'],
+ internet:['Internet','expense'],wifi:['Internet','expense'],aloqa:['Aloqa','expense'],paynet:['Aloqa','expense'],simkarta:['Aloqa','expense'],beeline:['Aloqa','expense'],ucell:['Aloqa','expense'],mobiuz:['Aloqa','expense'],uzmobile:['Aloqa','expense'],
+ kino:['Koʼngilochar','expense'],oyin:['Koʼngilochar','expense'],teatr:['Koʼngilochar','expense'],
+ maosh:['Maosh','income'],salary:['Maosh','income'],oylik:['Maosh','income'],bonus:['Bonus','income'],mukofot:['Bonus','income'],
+ frilans:['Frilans','income'],zakaz:['Frilans','income'],mijoz:['Frilans','income'],sovga:['Sovgʼa','income']
+};
 function parseNL(txt){const s=txt.toLowerCase();let amount=0;
   const km=s.match(/(\d+(?:[.,]\d+)?)\s*(mln|m|ming|k)\b/);
   if(km){let v=parseFloat(km[1].replace(',','.'));amount=/m/.test(km[2])?v*1e6:v*1e3;}
@@ -1527,8 +1578,20 @@ function openWishlist(id){
   haptic('medium');
 }
 
+function setWishPriority(p){
+  form.priority = p;
+  const container = document.getElementById('wishPriorityBtns');
+  if(container){
+    container.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('on', b.dataset.p === p);
+    });
+  }
+  haptic('selection');
+}
+
 function wishlistSheet(){
   const expCats = cats('expense');
+  const curPr = form.priority || 'medium';
   return `<div class="between"><h2>${form.edit ? 'Rejani tahrirlash' : 'Yangi xarid rejasi'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
   <label class="fld">Nomi (Nima olmoqchisiz?)</label>
   <input id="wtitle" placeholder="Masalan: iPhone 16 Pro, Mebel, Krossovka" value="${esc(form.title||'')}" oninput="form.title=this.value">
@@ -1556,10 +1619,10 @@ function wishlistSheet(){
   </select>
 
   <label class="fld">Muhimlik darajasi</label>
-  <div class="seg" style="margin-top:8px">
-    <button type="button" class="${form.priority==='high'?'on':''}" onclick="saveWishlistInputs();form.priority='high';reSheet()">⭐⭐⭐ Yuqori</button>
-    <button type="button" class="${(!form.priority||form.priority==='medium')?'on':''}" onclick="saveWishlistInputs();form.priority='medium';reSheet()">⭐⭐ Oʻrta</button>
-    <button type="button" class="${form.priority==='low'?'on':''}" onclick="saveWishlistInputs();form.priority='low';reSheet()">⭐ Oddiy</button>
+  <div class="seg" id="wishPriorityBtns" style="margin-top:8px">
+    <button type="button" data-p="high" class="${curPr==='high'?'on':''}" onclick="setWishPriority('high')">⭐⭐⭐ Yuqori</button>
+    <button type="button" data-p="medium" class="${curPr==='medium'?'on':''}" onclick="setWishPriority('medium')">⭐⭐ Oʻrta</button>
+    <button type="button" data-p="low" class="${curPr==='low'?'on':''}" onclick="setWishPriority('low')">⭐ Oddiy</button>
   </div>
 
   <label class="fld">Izoh yoki Havola (Ixtiyoriy)</label>
@@ -1632,6 +1695,10 @@ function saveWishlistInputs(){
   const pEl = document.getElementById('wprice'); if(pEl&&typeof pEl.value==='string') form.price = pEl.value.replace(/\s/g,'').replace(/,/g,'.');
   const cEl = document.getElementById('wcat'); if(cEl&&typeof cEl.value==='string') form.cat = cEl.value;
   const nEl = document.getElementById('wnote'); if(nEl&&typeof nEl.value==='string') form.note = nEl.value;
+  try {
+    const actBtn = (typeof document.querySelector === 'function') ? document.querySelector('#wishPriorityBtns button.on') : null;
+    if(actBtn && actBtn.dataset && actBtn.dataset.p) form.priority = actBtn.dataset.p;
+  } catch(e){}
 }
 
 function formatWishAmtInput(el){
