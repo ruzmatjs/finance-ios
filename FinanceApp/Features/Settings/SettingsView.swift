@@ -22,6 +22,23 @@ struct SettingsView: View {
                 NavigationLink { StatisticsView() } label: { Label("Statistika", systemImage: "chart.xyaxis.line") }
             }
 
+            // Integratsiyalar
+            Section("Integratsiyalar") {
+                NavigationLink {
+                    TelegramSettingsView()
+                } label: {
+                    HStack {
+                        Label("Telegram Bot hisoboti", systemImage: "paperplane.fill")
+                        Spacer()
+                        if settings.isTelegramConfigured {
+                            Text("Ulangan")
+                                .font(.caption)
+                                .foregroundStyle(Theme.Colors.income)
+                        }
+                    }
+                }
+            }
+
             // Koʻrinish
             Section("Koʻrinish") {
                 Picker("Tema", selection: $settings.themeMode) {

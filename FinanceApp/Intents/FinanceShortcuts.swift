@@ -32,5 +32,14 @@ struct FinanceShortcuts: AppShortcutsProvider {
             shortTitle: "Oylik xarajat",
             systemImageName: "chart.pie"
         )
+        AppShortcut(
+            intent: SendWeeklyReportIntent(),
+            phrases: [
+                "\(.applicationName) haftalik hisobotini yubor",
+                "Send weekly report in \(.applicationName)"
+            ],
+            shortTitle: "Haftalik hisobot",
+            systemImageName: "paperplane.fill"
+        )
     }
 }

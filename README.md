@@ -156,9 +156,23 @@ oʻzgarish qayta ishga tushirishda kuchga kiradi). `CloudSyncMonitor`
 - `ReceiptViewer` — toʻliq ekranli zoom/surish; AddTransactionView'da "Chek rasmi" boʻlimi.
 - Chek komponentlari PhotosUI/kamera ishlatgani uchun widget target'idan `excludes` bilan chiqarilgan.
 
+## Telegram Bot integratsiyasi & Haftalik avtomatlashtirish (qoʻshildi)
+Ilova hech qanday oraliq backend'siz toʻgʻridan-toʻgʻri **Telegram Bot API** bilan ishlaydi:
+- `TelegramService` — `sendMessage` (HTML formatlangan sarf-xarajatlar statistikasi) va `sendDocument` (PDF yoki Excel hisobot biriktirmasi).
+- `TelegramSettingsView` — Bot Token, Chat ID kiritish, ulanishni sinash ("Ulanishni tekshirish") va hozir hisobot yuborish.
+- `SendWeeklyReportIntent` — iOS Shortcuts / Siri orqali fonda ishga tushadigan `AppIntent`.
+
+**Har hafta avtomatik yuborishni sozlash (iPhone'da 1 daqiqada):**
+1. Telegram'da `@BotFather` orqali bot ochib, **Token**ni va `@userinfobot`dan **Chat ID**ni oling.
+2. Ilova ichida **Sozlamalar ➔ Telegram Bot hisoboti**ga kirib maʼlumotlarni kiriting va **"Ulanishni tekshirish"** tugmasini bosing.
+3. iPhone **"Buyruqlar" (Shortcuts)** ilovasini oching ➔ **"Avtomatlashtirish" (Automation)** ➔ **"+"** bosing.
+4. **"Kun vaqti" (Time of Day)**: masalan, *Har dushanba 09:00* ➔ Harakat: *"FinanceApp haftalik hisoboti"* ➔ *"Darhol ishga tushirish"* (Run immediately).
+5. Natijada har dushanba ertalab telefoningiz avtomatik tarzda Telegram chatingizga PDF/Excel hisobot va xulosani tashlab beradi!
+
 ## Keyingi bosqich (TODO)
 - Custom passcode (qurilma paroli oʻrniga ilova ichidagi PIN).
 - CloudKit share (oila/hamkor bilan umumiy byudjet).
 - OCR — chek rasmidan summa/sana avtomatik oʻqish (VisionKit).
 - Widget presetlarini foydalanuvchi sozlashi (`AppIntentConfiguration` — configurable widget).
+
 ```

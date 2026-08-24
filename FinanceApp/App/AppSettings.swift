@@ -64,9 +64,25 @@ final class AppSettings {
         didSet { defaults.set(iCloudSyncEnabled, forKey: Keys.iCloudSync) }
     }
 
+    // Telegram Bot integratsiyasi
+    var telegramBotToken: String {
+        didSet { defaults.set(telegramBotToken, forKey: Keys.telegramBotToken) }
+    }
+    var telegramChatId: String {
+        didSet { defaults.set(telegramChatId, forKey: Keys.telegramChatId) }
+    }
+    var telegramReportFormat: String {
+        didSet { defaults.set(telegramReportFormat, forKey: Keys.telegramReportFormat) }
+    }
+
+    var isTelegramConfigured: Bool {
+        !telegramBotToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !telegramChatId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private let defaults: UserDefaults
 
-    // Standart emas, App Group defaults — shunda Widget ham valyutani koʻradi.
+    // Standart emas, App Group defaults — shunda Widget va Intent ham koʻradi.
     init(defaults: UserDefaults = AppGroup.defaults) {
         self.defaults = defaults
         self.themeMode = ThemeMode(rawValue: defaults.string(forKey: Keys.theme) ?? "") ?? .system
@@ -80,6 +96,9 @@ final class AppSettings {
         self.dailyReminderHour = defaults.object(forKey: Keys.dailyHour) as? Int ?? 21
         self.monthlyReportEnabled = defaults.object(forKey: Keys.monthlyReport) as? Bool ?? true
         self.iCloudSyncEnabled = defaults.object(forKey: Keys.iCloudSync) as? Bool ?? true
+        self.telegramBotToken = defaults.string(forKey: Keys.telegramBotToken) ?? "8718918141:AAH1KK-yaaJQaTyABJAPjDwdWwJt6DIiSOM"
+        self.telegramChatId = defaults.string(forKey: Keys.telegramChatId) ?? ""
+        self.telegramReportFormat = defaults.string(forKey: Keys.telegramReportFormat) ?? "pdf"
     }
 
     private enum Keys {
@@ -94,5 +113,8 @@ final class AppSettings {
         static let dailyHour = "settings.dailyReminderHour"
         static let monthlyReport = "settings.monthlyReport"
         static let iCloudSync = "settings.iCloudSync"
+        static let telegramBotToken = "settings.telegramBotToken"
+        static let telegramChatId = "settings.telegramChatId"
+        static let telegramReportFormat = "settings.telegramReportFormat"
     }
 }

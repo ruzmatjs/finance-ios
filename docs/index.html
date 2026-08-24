@@ -103,7 +103,20 @@
 <script>
 // ============ Telegram ============
 const TG=window.Telegram?.WebApp;
-if(TG){TG.ready();TG.expand();try{TG.setHeaderColor('bg_color')}catch(e){}}
+if(TG){
+  TG.ready();
+  TG.expand();
+  try{TG.setHeaderColor('bg_color')}catch(e){}
+  try{
+    TG.BackButton?.onClick(()=>{
+      if(document.getElementById('modal')?.classList.contains('show')){
+        closeSheet();
+      } else if(typeof page!=='undefined'&&typeof tab!=='undefined'&&page!==tab){
+        nav(tab||'home');
+      }
+    });
+  }catch(e){}
+}
 function haptic(t='light'){try{TG?.HapticFeedback?.impactOccurred(t)}catch(e){}}
 function notify(t='success'){try{TG?.HapticFeedback?.notificationOccurred(t)}catch(e){}}
 
@@ -157,6 +170,28 @@ function ensure(){
   state.debts=state.debts||[];
   if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
+
+  // Clean bogus repayment records that were mistakenly created as debts
+  state.debts = state.debts.filter(d => {
+    if(!d || typeof d !== 'object') return false;
+    const note = (d.note || '').toLowerCase();
+    if(note.startsWith('qarz qaytarildi') || note.startsWith('qarz toʻlandi') || note.startsWith('qarz to\'landi')) return false;
+    return true;
+  });
+
+  // Ensure valid debt object structures
+  state.debts.forEach(d => {
+    d.amount = parseFloat(d.amount) || 0;
+    d.paid = parseFloat(d.paid) || 0;
+    d.person = (d.person || 'Shaxs (Qarz)').trim();
+    d.type = (d.type === 'borrow') ? 'borrow' : 'lend';
+    d.status = (d.paid >= d.amount && d.amount > 0) ? 'settled' : (d.status || 'active');
+    d.accountId = d.accountId || state.accounts[0].id;
+    d.dueDate = d.dueDate || '';
+    d.note = d.note || '';
+    d.date = d.date || new Date().toISOString();
+  });
+
   syncHistoricalDebts();
 }
 
@@ -174,11 +209,15 @@ function syncHistoricalDebts(){
   state.debts = state.debts || [];
   if(!state.tx || !state.tx.length) return;
   state.tx.forEach(t => {
+    if(t.isRepay) return;
+    const note = (t.note || '').toLowerCase();
+    if(note.startsWith('qarz qaytarildi') || note.startsWith('qarz toʻlandi') || note.startsWith('qarz to\'landi')) return;
+
     const isQarzCat = t.cat === 'Qarz';
     const isQarzMerchant = t.merchant && t.merchant.toLowerCase().includes('qarz');
     const isQarzNote = t.note && t.note.toLowerCase().includes('qarz');
     if(isQarzCat || isQarzMerchant || isQarzNote){
-      const exists = state.debts.some(d => d.txId === t.id || (d.amount === t.amount && d.date === t.date));
+      const exists = state.debts.some(d => (d.txId && d.txId === t.id) || (d.amount === t.amount && d.date === t.date));
       if(!exists){
         const isExp = t.type === 'expense';
         const personName = extractPersonFromTx(t);
@@ -259,10 +298,22 @@ function addP(d,p,n=1){const x=new Date(d);
   if(p==='daily')x.setDate(x.getDate()+n); else if(p==='weekly')x.setDate(x.getDate()+7*n);
   else if(p==='yearly')x.setFullYear(x.getFullYear()+n); else x.setMonth(x.getMonth()+n); return x}
 function pStart(p){return p==='weekly'?weekStart():p==='yearly'?yearStart():monthStart()}
-function sameDay(a,b){return new Date(a).toDateString()===new Date(b).toDateString()}
-function fmtD(d,o){return new Date(d).toLocaleDateString('ru-RU',o||{day:'numeric',month:'short'})}
-function toLocalInput(d){const x=new Date(d||Date.now());const p=n=>String(n).padStart(2,'0');
-  return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`;}
+function sameDay(a,b){
+  if(!a||!b) return false;
+  const da=new Date(a),db=new Date(b);
+  return !isNaN(da.getTime())&&!isNaN(db.getTime())&&da.toDateString()===db.toDateString();
+}
+function fmtD(d,o){
+  if(!d) return '';
+  const dt=new Date(d);
+  return isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('ru-RU',o||{day:'numeric',month:'short'});
+}
+function toLocalInput(d){
+  const x=new Date(d||Date.now());
+  if(isNaN(x.getTime())) return '';
+  const p=n=>String(n).padStart(2,'0');
+  return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`;
+}
 
 // ============ Balans ============
 function signed(t){return t.type==='income'?t.amount:t.type==='expense'?-t.amount:0}
@@ -324,6 +375,16 @@ function render(keepScroll=true){
   const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
     accounts:viewAccounts,debts:viewDebts,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
   el.innerHTML=v?v():viewHome();
+
+  if(TG&&TG.BackButton){
+    try {
+      if(page!==tab||document.getElementById('modal')?.classList.contains('show')){
+        TG.BackButton.show();
+      } else {
+        TG.BackButton.hide();
+      }
+    } catch(e){}
+  }
 
   if(keepScroll){
     window.scrollTo(0,scrollY);
@@ -946,11 +1007,11 @@ function txSheet(){const isT=form.type==='transfer';
   <button class="btn" onclick="saveTx()">Saqlash</button>
   ${form.edit?`<button class="btn danger" onclick="delTx('${form.edit}')">Oʼchirish</button>`:''}`;}
 function saveFormInputs(){
-  const aEl=document.getElementById('amt');if(aEl)form.amount=aEl.value.replace(/\s/g,'');
-  const nEl=document.getElementById('note');if(nEl)form.note=nEl.value;
+  const aEl=document.getElementById('amt');if(aEl&&typeof aEl.value==='string')form.amount=aEl.value.replace(/\s/g,'');
+  const nEl=document.getElementById('note');if(nEl&&typeof nEl.value==='string')form.note=nEl.value;
   const dEl=document.getElementById('txdate');if(dEl&&dEl.value)form.date=new Date(dEl.value).toISOString();
-  const accEl=document.getElementById('acc');if(accEl)form.accountId=accEl.value;
-  const toAccEl=document.getElementById('toacc');if(toAccEl)form.toAccountId=toAccEl.value;
+  const accEl=document.getElementById('acc');if(accEl&&typeof accEl.value==='string')form.accountId=accEl.value;
+  const toAccEl=document.getElementById('toacc');if(toAccEl&&typeof toAccEl.value==='string')form.toAccountId=toAccEl.value;
 }
 function applyNL(){
   saveFormInputs();
@@ -990,8 +1051,27 @@ function saveTx(){
   const obj={type:form.type,amount:amt,cat:isT?null:(form.cat||'Boshqa'),accountId:form.accountId,
     toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav,
     date:form.date||new Date().toISOString()};
-  if(form.edit){const t=state.tx.find(x=>x.id===form.edit);Object.assign(t,obj);}
-  else{
+  if(form.edit){
+    const t=state.tx.find(x=>x.id===form.edit);
+    if(t) Object.assign(t,obj);
+    if(state.debts){
+      const d = state.debts.find(x=>x.txId===form.edit);
+      if(d){
+        if(obj.cat === 'Qarz'){
+          d.amount = amt;
+          d.type = (obj.type === 'expense') ? 'lend' : 'borrow';
+          d.accountId = obj.accountId;
+          d.date = obj.date;
+          d.note = obj.note || '';
+          d.person = extractPersonFromTx(obj);
+          if((d.paid || 0) >= d.amount) d.status = 'settled';
+          else d.status = 'active';
+        } else {
+          state.debts = state.debts.filter(x => x.txId !== form.edit);
+        }
+      }
+    }
+  } else {
     obj.id=genId();
     state.tx.push(obj);
     if(obj.cat === 'Qarz'){
@@ -1046,7 +1126,7 @@ function openDebt(id){
     person: '',
     amount: '',
     paid: 0,
-    accountId: state.accounts[0].id,
+    accountId: state.accounts[0]?.id || 'cash',
     dueDate: '',
     note: '',
     date: new Date().toISOString()
@@ -1058,8 +1138,8 @@ function openDebt(id){
 function debtSheet(){
   return `<div class="between"><h2>${form.edit ? 'Qarzni tahrirlash' : 'Yangi qarz'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
   <div class="seg">
-    <button class="${form.type==='lend'?'on':''}" onclick="form.type='lend';reSheet()">🟢 Men berdim (Mendan olishdi)</button>
-    <button class="${form.type==='borrow'?'on':''}" onclick="form.type='borrow';reSheet()">🔴 Men oldim (Menga berishdi)</button>
+    <button class="${form.type==='lend'?'on':''}" onclick="saveDebtInputs();form.type='lend';reSheet()">🟢 Men berdim (Mendan olishdi)</button>
+    <button class="${form.type==='borrow'?'on':''}" onclick="saveDebtInputs();form.type='borrow';reSheet()">🔴 Men oldim (Menga berishdi)</button>
   </div>
   <label class="fld">Shaxs (Kimga / Kimdan)</label>
   <input id="dperson" placeholder="Masalan: Ali, Akam, Rustam" value="${esc(form.person||'')}" oninput="form.person=this.value">
@@ -1075,54 +1155,100 @@ function debtSheet(){
   ${form.edit ? `<button class="btn danger" onclick="delDebt('${form.edit}')">Oʻchirish</button>` : ''}`;
 }
 
+function saveDebtInputs(){
+  const pEl = document.getElementById('dperson'); if(pEl&&typeof pEl.value==='string') form.person = pEl.value;
+  const aEl = document.getElementById('damt'); if(aEl&&typeof aEl.value==='string') form.amount = aEl.value.replace(/\s/g,'').replace(/,/g,'.');
+  const accEl = document.getElementById('dacc'); if(accEl&&typeof accEl.value==='string') form.accountId = accEl.value;
+  const dueEl = document.getElementById('ddue'); if(dueEl&&typeof dueEl.value==='string') form.dueDate = dueEl.value;
+  const noteEl = document.getElementById('dnote'); if(noteEl&&typeof noteEl.value==='string') form.note = noteEl.value;
+}
+
 function formatDebtAmtInput(el){
+  const start = el.selectionStart;
+  const oldLen = el.value.length;
   const raw = el.value.replace(/\s/g,'').replace(/,/g,'.');
+  const parts = raw.split('.');
+  if(parts[0]){parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  const formatted = parts.join('.');
+  el.value = formatted;
   form.amount = raw;
-  formatAmtInput(el);
+  el.style.outline = 'none';
+  const diff = formatted.length - oldLen;
+  try{ el.setSelectionRange(start + diff, start + diff); }catch(e){}
 }
 
 function saveDebt(){
+  saveDebtInputs();
   const amt = parseFloat(String(form.amount).replace(/[^\d.]/g,''))||0;
   if(amt <= 0 || !form.person || !form.person.trim()){
+    const pEl = document.getElementById('dperson');
+    const aEl = document.getElementById('damt');
+    if(!form.person || !form.person.trim()){
+      if(pEl){ pEl.style.outline = '2px solid var(--expense)'; pEl.focus(); }
+    } else if(amt <= 0){
+      if(aEl){ aEl.style.outline = '2px solid var(--expense)'; aEl.focus(); }
+    }
     alert('Iltimos, ism va summani toʻgʻri kiriting');
     return;
   }
+
+  const personName = form.person.trim();
+  const noteText = form.note ? form.note.trim() : '';
+  const txType = form.type === 'lend' ? 'expense' : 'income';
+
   if(form.edit){
     const d = state.debts.find(x => x.id === form.edit);
     if(d){
-      d.person = form.person.trim();
+      d.person = personName;
       d.amount = amt;
       d.type = form.type;
       d.accountId = form.accountId;
       d.dueDate = form.dueDate || '';
-      d.note = form.note || '';
+      d.note = noteText;
       if((d.paid || 0) >= d.amount) d.status = 'settled';
       else d.status = 'active';
+
+      if(d.txId){
+        const t = state.tx.find(x => x.id === d.txId);
+        if(t){
+          t.amount = amt;
+          t.type = txType;
+          t.accountId = form.accountId;
+          t.merchant = personName;
+          t.note = form.type === 'lend' ? `Qarz berildi: ${personName}` : `Qarz olindi: ${personName}`;
+          if(noteText) t.note += ` (${noteText})`;
+        }
+      }
     }
   } else {
+    const txId = genId();
     const newDebt = {
       id: genId(),
+      txId: txId,
       type: form.type,
-      person: form.person.trim(),
+      person: personName,
       amount: amt,
       paid: 0,
       accountId: form.accountId,
       dueDate: form.dueDate || '',
-      note: form.note || '',
+      note: noteText,
       date: new Date().toISOString(),
       status: 'active'
     };
     state.debts.push(newDebt);
-    const txType = form.type === 'lend' ? 'expense' : 'income';
+
+    let defaultTxNote = form.type === 'lend' ? `Qarz berildi: ${personName}` : `Qarz olindi: ${personName}`;
+    if(noteText) defaultTxNote += ` (${noteText})`;
+
     state.tx.push({
-      id: genId(),
+      id: txId,
       type: txType,
       amount: amt,
       cat: 'Qarz',
       accountId: form.accountId,
-      merchant: form.person.trim(),
-      note: form.type === 'lend' ? `Qarz berildi: ${form.person.trim()}` : `Qarz olindi: ${form.person.trim()}`,
-      date: new Date().toISOString(),
+      merchant: personName,
+      note: defaultTxNote,
+      date: newDebt.date,
       fav: false
     });
   }
@@ -1134,6 +1260,10 @@ function saveDebt(){
 
 function delDebt(id){
   if(!confirm('Qarz oʻchirilsinmi?')) return;
+  const d = state.debts.find(x => x.id === id);
+  if(d && d.txId){
+    state.tx = state.tx.filter(t => t.id !== d.txId);
+  }
   state.debts = state.debts.filter(d => d.id !== id);
   save();
   closeSheet();
@@ -1146,14 +1276,14 @@ let repayForm = {};
 function openRepay(debtId){
   const d = state.debts.find(x => x.id === debtId);
   if(!d) return;
-  const remaining = Math.max(0, d.amount - (d.paid || 0));
+  const remaining = Math.max(0, (d.amount || 0) - (d.paid || 0));
   repayForm = {
     debtId: d.id,
     person: d.person,
     type: d.type,
     remaining: remaining,
     amount: String(remaining),
-    accountId: d.accountId || state.accounts[0].id
+    accountId: d.accountId || state.accounts[0]?.id || 'cash'
   };
   openSheet(repaySheet);
   haptic('medium');
@@ -1164,7 +1294,7 @@ function repaySheet(){
   const title = isLend ? `Qarzni qaytarib olish (${esc(repayForm.person)})` : `Qarzni qaytarib berish (${esc(repayForm.person)})`;
   const amtVal = parseFloat(String(repayForm.amount).replace(/[^\d.]/g,''))||0;
   const btnText = isLend ? `📥 Qaytarib oldim (${fmt(amtVal)})` : `📤 Qaytarib berdim (${fmt(amtVal)})`;
-  
+
   return `<div class="between"><h2>${title}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
   <div style="background:var(--sep);border-radius:12px;padding:12px;margin:12px 0;font-size:13px">
     <div class="between"><span class="muted">Qolgan umumiy qarz:</span><b class="mono">${fmt(repayForm.remaining)}</b></div>
@@ -1173,18 +1303,41 @@ function repaySheet(){
   <input class="amtinput" id="repayAmt" inputmode="decimal" value="${fmtNumInput(repayForm.amount)}" oninput="formatRepayAmtInput(this)">
   <label class="fld">${isLend ? 'Qaysi hisobga qabul qilindi' : 'Qaysi hisobdan toʻlandi'}</label>
   <select id="repayAcc" onchange="repayForm.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${repayForm.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
-  <button class="btn" style="background:${isLend ? 'var(--income)' : 'var(--expense)'}" onclick="saveRepay()">${btnText}</button>`;
+  <button id="repayBtn" class="btn" style="background:${isLend ? 'var(--income)' : 'var(--expense)'}" onclick="saveRepay()">${btnText}</button>`;
+}
+
+function saveRepayInputs(){
+  const aEl = document.getElementById('repayAmt'); if(aEl&&typeof aEl.value==='string') repayForm.amount = aEl.value.replace(/\s/g,'').replace(/,/g,'.');
+  const accEl = document.getElementById('repayAcc'); if(accEl&&typeof accEl.value==='string') repayForm.accountId = accEl.value;
 }
 
 function formatRepayAmtInput(el){
+  const start = el.selectionStart;
+  const oldLen = el.value.length;
   const raw = el.value.replace(/\s/g,'').replace(/,/g,'.');
+  const parts = raw.split('.');
+  if(parts[0]){parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+  const formatted = parts.join('.');
+  el.value = formatted;
   repayForm.amount = raw;
-  formatAmtInput(el);
+  el.style.outline = 'none';
+  const diff = formatted.length - oldLen;
+  try{ el.setSelectionRange(start + diff, start + diff); }catch(e){}
+
+  const isLend = repayForm.type === 'lend';
+  const amtVal = parseFloat(raw.replace(/[^\d.]/g,'')) || 0;
+  const btn = document.getElementById('repayBtn');
+  if(btn){
+    btn.textContent = isLend ? `📥 Qaytarib oldim (${fmt(amtVal)})` : `📤 Qaytarib berdim (${fmt(amtVal)})`;
+  }
 }
 
 function saveRepay(){
+  saveRepayInputs();
   const amt = parseFloat(String(repayForm.amount).replace(/[^\d.]/g,''))||0;
   if(amt <= 0){
+    const aEl = document.getElementById('repayAmt');
+    if(aEl){ aEl.style.outline = '2px solid var(--expense)'; aEl.focus(); }
     alert('Iltimos, summani toʻgʻri kiriting');
     return;
   }
@@ -1206,6 +1359,7 @@ function saveRepay(){
     merchant: d.person,
     note: d.type === 'lend' ? `Qarz qaytarildi: ${d.person}` : `Qarz toʻlandi: ${d.person}`,
     date: new Date().toISOString(),
+    isRepay: true,
     fav: false
   });
 
@@ -1295,10 +1449,22 @@ function colorPick(key){return `<div class="chips">${PALETTE.map(c=>`<span oncli
 
 // ============ Modal boshqaruvi ============
 let _sheetFn=null;
-function openSheet(v){ if(typeof v==='function'){_sheetFn=v;document.getElementById('sheet').innerHTML=v();}
-  else {_sheetFn=null;document.getElementById('sheet').innerHTML=v;} document.getElementById('modal').classList.add('show'); }
+function openSheet(v){
+  if(typeof v==='function'){_sheetFn=v;document.getElementById('sheet').innerHTML=v();}
+  else {_sheetFn=null;document.getElementById('sheet').innerHTML=v;}
+  document.getElementById('modal').classList.add('show');
+  try{ if(TG&&TG.BackButton) TG.BackButton.show(); }catch(e){}
+}
 function reSheet(){ if(_sheetFn)document.getElementById('sheet').innerHTML=_sheetFn(); }
-function closeSheet(){document.getElementById('modal').classList.remove('show');}
+function closeSheet(){
+  document.getElementById('modal').classList.remove('show');
+  try{
+    if(TG&&TG.BackButton){
+      if(page===tab) TG.BackButton.hide();
+      else TG.BackButton.show();
+    }
+  }catch(e){}
+}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeSheet();});
 
 // ============ Amallar ============
