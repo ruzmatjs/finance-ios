@@ -96,6 +96,7 @@
 <div class="tabbar">
   <button data-tab="home" class="active" onclick="go('home')"><span class="ti">🏠</span>Asosiy</button>
   <button data-tab="list" onclick="go('list')"><span class="ti">📃</span>Tranzaksiya</button>
+  <button data-tab="wishlist" onclick="go('wishlist')"><span class="ti">🛍️</span>Rejalar</button>
   <button data-tab="report" onclick="go('report')"><span class="ti">📊</span>Hisobot</button>
   <button data-tab="settings" onclick="go('settings')"><span class="ti">⚙️</span>Sozlama</button>
 </div>
@@ -977,7 +978,8 @@ function viewWishlist(){
 
   const currentList = wishFilterTab === 'planned' ? planned : bought;
 
-  let html = head('Xaridlar rejasi', 'settings') +
+  const headerHtml = (page !== tab) ? head('Xaridlar rejasi', tab || 'settings') : '<h1>Xaridlar rejasi</h1>';
+  let html = headerHtml +
     `<div class="card" style="margin-bottom:10px">
       <div class="between">
         <div>
