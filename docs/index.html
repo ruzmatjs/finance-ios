@@ -1608,6 +1608,40 @@ function setWishPriority(p){
   haptic('selection');
 }
 
+function renderWishImgPreview(){
+  if(form.image){
+    return `
+      <div id="wishImgBox" style="position:relative;width:100%;height:150px;border-radius:14px;overflow:hidden;margin-bottom:8px;background:var(--sep)">
+        <img src="${form.image}" referrerpolicy="no-referrer" onerror="onWishImgError()" style="width:100%;height:100%;object-fit:cover;display:block">
+        <button type="button" onclick="removeWishImage()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px">
+          ✕ Oʻchirish
+        </button>
+      </div>
+    `;
+  }
+  return `
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed var(--accent);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
+        <span style="font-size:20px">📷</span> <b style="font-size:13px;color:var(--accent)">Galereya / Kamera orqali yuklash</b>
+      </label>
+      <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+      <input id="wimgurl" placeholder="Yoki rasm havolasini (URL) kiriting..." value="" oninput="handleWishUrl(this.value)" style="font-size:13px;padding:10px;margin-top:0">
+    </div>
+  `;
+}
+
+function onWishImgError(){
+  form.image = '';
+  const prev = document.getElementById('wishImgPreview');
+  if(prev){
+    prev.innerHTML = `
+      <div style="padding:10px;border-radius:12px;background:rgba(255,59,48,0.12);color:var(--expense);font-size:12px;font-weight:600;margin-bottom:8px;text-align:center">
+        ⚠️ Oldingi rasm ochilmadi. Quyidan yangi rasm tanlashingiz mumkin:
+      </div>
+      ` + renderWishImgPreview();
+  }
+}
+
 function wishlistSheet(){
   const expCats = cats('expense');
   const curPr = form.priority || 'medium';
@@ -1619,20 +1653,7 @@ function wishlistSheet(){
   
   <label class="fld" style="margin-bottom:6px">Buyum rasmi</label>
   <div id="wishImgPreview">
-    ${form.image ? `
-      <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px;background:var(--sep)">
-        <img src="${form.image}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.style.display='none';" style="width:100%;height:100%;object-fit:cover;display:block">
-        <button type="button" onclick="removeWishImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
-      </div>
-    ` : `
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
-          <span style="font-size:18px">📷</span> <b style="font-size:13px;color:var(--accent)">Galereya / Kamera orqali yuklash</b>
-        </label>
-        <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
-        <input id="wimgurl" placeholder="Yoki rasm havolasini (URL) kiriting..." value="${(form.image && !form.image.startsWith('data:')) ? esc(form.image) : ''}" oninput="handleWishUrl(this.value)" style="font-size:13px;padding:10px">
-      </div>
-    `}
+    ${renderWishImgPreview()}
   </div>
 
   <label class="fld">Kategoriya</label>
@@ -1657,6 +1678,16 @@ function wishlistSheet(){
 function handleWishUrl(url){
   const clean = (url || '').trim();
   form.image = clean;
+  if(clean){
+    const test = new Image();
+    test.onload = function(){
+      const prev = document.getElementById('wishImgPreview');
+      if(prev && form.image === clean){
+        prev.innerHTML = renderWishImgPreview();
+      }
+    };
+    test.src = clean;
+  }
 }
 
 function handleWishImage(el){
@@ -1687,12 +1718,7 @@ function handleWishImage(el){
       form.image = compressedDataUrl;
       const prev = document.getElementById('wishImgPreview');
       if(prev){
-        prev.innerHTML = `
-          <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px;background:var(--sep)">
-            <img src="${compressedDataUrl}" style="width:100%;height:100%;object-fit:cover;display:block">
-            <button type="button" onclick="removeWishImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
-          </div>
-        `;
+        prev.innerHTML = renderWishImgPreview();
       }
     };
     img.onerror = function(){
@@ -1707,15 +1733,7 @@ function removeWishImage(){
   form.image = '';
   const prev = document.getElementById('wishImgPreview');
   if(prev){
-    prev.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
-          <span style="font-size:18px">📷</span> <b style="font-size:13px;color:var(--accent)">Galereya / Kamera orqali yuklash</b>
-        </label>
-        <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
-        <input id="wimgurl" placeholder="Yoki rasm havolasini (URL) kiriting..." value="" oninput="handleWishUrl(this.value)" style="font-size:13px;padding:10px">
-      </div>
-    `;
+    prev.innerHTML = renderWishImgPreview();
   }
 }
 
