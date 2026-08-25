@@ -143,7 +143,7 @@ const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','👨‍�
 let state=load()||{};
 let _ready=false,_cloudTimer=null;
 function load(){try{return JSON.parse(localStorage.getItem('finance.v1'))}catch(e){return null}}
-function localWrite(){localStorage.setItem('finance.v1',JSON.stringify(state))}
+function localWrite(){try{localStorage.setItem('finance.v1',JSON.stringify(state))}catch(e){console.error(e)}}
 function save(){state.updatedAt=Date.now();localWrite();scheduleCloud();}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function ensure(){
@@ -309,9 +309,19 @@ function cloudOn(){return !!(TG&&TG.CloudStorage&&TG.isVersionAtLeast&&TG.isVers
 function chunkBytes(str,max){const enc=new TextEncoder();const out=[];let cur='',b=0;
   for(const ch of str){const n=enc.encode(ch).length;if(b+n>max){out.push(cur);cur=ch;b=n;}else{cur+=ch;b+=n;}}
   if(cur)out.push(cur);return out;}
-function cloudSave(){ if(!cloudOn())return; const ch=chunkBytes(JSON.stringify(state),3500);
-  TG.CloudStorage.setItem('fin_n',String(ch.length),()=>{});
-  ch.forEach((c,i)=>TG.CloudStorage.setItem('fin_'+i,c,()=>{})); }
+function cloudSave(){ if(!cloudOn())return;
+  try {
+    const ch=chunkBytes(JSON.stringify(state),3500);
+    const obj={'fin_n':String(ch.length)};
+    ch.forEach((c,i)=>{ obj['fin_'+i]=c; });
+    if(typeof TG.CloudStorage.setItems === 'function'){
+      TG.CloudStorage.setItems(obj,()=>{});
+    } else {
+      TG.CloudStorage.setItem('fin_n',String(ch.length),()=>{});
+      ch.forEach((c,i)=>TG.CloudStorage.setItem('fin_'+i,c,()=>{}));
+    }
+  } catch(e){}
+}
 function scheduleCloud(){ if(!_ready||!cloudOn())return; clearTimeout(_cloudTimer); _cloudTimer=setTimeout(cloudSave,800); }
 function cloudLoad(cb){ if(!cloudOn()){cb(null);return;}
   TG.CloudStorage.getItem('fin_n',(e,v)=>{ const n=parseInt(v); if(e||!n){cb(null);return;}
@@ -1022,8 +1032,8 @@ function viewWishlist(){
 
       return `<div class="card" style="padding:14px">
         ${w.image ? `
-          <div style="width:100%;height:150px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:var(--sep)">
-            <img src="${w.image}" style="width:100%;height:100%;object-fit:cover;display:block" alt="${esc(w.title)}">
+          <div style="width:100%;height:160px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:var(--sep);position:relative">
+            <img src="${w.image}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.parentElement.style.display='none';" style="width:100%;height:100%;object-fit:cover;display:block" alt="${esc(w.title)}">
           </div>
         ` : ''}
         <div class="between" style="align-items:flex-start;margin-bottom:6px">
@@ -1610,15 +1620,18 @@ function wishlistSheet(){
   <label class="fld" style="margin-bottom:6px">Buyum rasmi</label>
   <div id="wishImgPreview">
     ${form.image ? `
-      <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px">
-        <img src="${form.image}" style="width:100%;height:100%;object-fit:cover;display:block">
+      <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px;background:var(--sep)">
+        <img src="${form.image}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.parentElement.style.display='none';" style="width:100%;height:100%;object-fit:cover;display:block">
         <button type="button" onclick="removeWishImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
       </div>
     ` : `
-      <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
-        <span style="font-size:20px">📷</span> <b style="font-size:13px;color:var(--accent)">Rasm biriktirish (Kamera / Galereya)</b>
-      </label>
-      <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
+          <span style="font-size:18px">📷</span> <b style="font-size:13px;color:var(--accent)">Galereya / Kamera orqali yuklash</b>
+        </label>
+        <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+        <input id="wimgurl" placeholder="Yoki rasm havolasini (URL) kiriting..." value="${(form.image && !form.image.startsWith('data:')) ? esc(form.image) : ''}" oninput="handleWishUrl(this.value)" style="font-size:13px;padding:10px">
+      </div>
     `}
   </div>
 
@@ -1641,18 +1654,19 @@ function wishlistSheet(){
   ${form.edit ? `<button class="btn danger" onclick="delWishlist('${form.edit}')">Oʻchirish</button>` : ''}`;
 }
 
+function handleWishUrl(url){
+  const clean = (url || '').trim();
+  form.image = clean;
+}
+
 function handleWishImage(el){
   const file = el.files?.[0];
   if(!file) return;
-  if(!file.type.startsWith('image/')){
-    alert('Iltimos, faqat rasm faylini tanlang');
-    return;
-  }
   const reader = new FileReader();
   reader.onload = function(e){
     const img = new Image();
     img.onload = function(){
-      const maxDim = 600;
+      const maxDim = 360;
       let w = img.width;
       let h = img.height;
       if(w > maxDim || h > maxDim){
@@ -1669,17 +1683,20 @@ function handleWishImage(el){
       canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
       form.image = compressedDataUrl;
       const prev = document.getElementById('wishImgPreview');
       if(prev){
         prev.innerHTML = `
-          <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px">
+          <div style="position:relative;width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:8px;background:var(--sep)">
             <img src="${compressedDataUrl}" style="width:100%;height:100%;object-fit:cover;display:block">
             <button type="button" onclick="removeWishImage()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">✕</button>
           </div>
         `;
       }
+    };
+    img.onerror = function(){
+      alert('Rasm yuklashda xatolik yuz berdi.');
     };
     img.src = e.target.result;
   };
@@ -1691,10 +1708,13 @@ function removeWishImage(){
   const prev = document.getElementById('wishImgPreview');
   if(prev){
     prev.innerHTML = `
-      <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
-        <span style="font-size:20px">📷</span> <b style="font-size:13px;color:var(--accent)">Rasm biriktirish (Kamera / Galereya)</b>
-      </label>
-      <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label for="wimg" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:2px dashed var(--sep);border-radius:14px;cursor:pointer;background:var(--card);transition:.15s">
+          <span style="font-size:18px">📷</span> <b style="font-size:13px;color:var(--accent)">Galereya / Kamera orqali yuklash</b>
+        </label>
+        <input type="file" id="wimg" accept="image/*" style="display:none" onchange="handleWishImage(this)">
+        <input id="wimgurl" placeholder="Yoki rasm havolasini (URL) kiriting..." value="" oninput="handleWishUrl(this.value)" style="font-size:13px;padding:10px">
+      </div>
     `;
   }
 }
