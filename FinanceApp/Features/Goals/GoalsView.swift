@@ -34,11 +34,17 @@ struct GoalsView: View {
     }
 
     private func goalCard(_ goal: Goal) -> some View {
-        VStack(spacing: Theme.Spacing.sm) {
-            ZStack {
-                ProgressRing(progress: goal.progress, color: goal.color, size: 88)
-                Image(systemName: goal.symbol).font(.title3).foregroundStyle(goal.color)
-                    .offset(y: 22)
+        let sym = goal.symbol.isEmpty ? "target" : goal.symbol
+        return VStack(spacing: Theme.Spacing.sm) {
+            ProgressRing(progress: goal.progress, color: goal.color, lineWidth: 8, size: 92) {
+                VStack(spacing: 4) {
+                    Image(systemName: sym)
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(goal.color)
+                    Text("\(Int(goal.progress * 100))%")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.Colors.primaryText)
+                }
             }
             Text(goal.name).font(.callout.weight(.semibold)).lineLimit(1)
             Text("\(CurrencyFormatter.compact(goal.currentAmount, code: settings.currencyCode)) / \(CurrencyFormatter.compact(goal.targetAmount, code: settings.currencyCode))")
@@ -108,6 +114,23 @@ struct GoalEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressRing(progress: 0.65, color: Color(hex: colorHex), lineWidth: 8, size: 84) {
+                            VStack(spacing: 4) {
+                                Image(systemName: symbol.isEmpty ? "target" : symbol)
+                                    .font(.system(size: 24, weight: .semibold))
+                                    .foregroundStyle(Color(hex: colorHex))
+                                Text("65%")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Theme.Colors.primaryText)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                }
                 Section("Nomi") { TextField("Masalan: Yangi mashina", text: $name) }
                 Section("Maqsad summasi") { TextField("0", text: $targetText).keyboardType(.decimalPad) }
                 Section("Hozirgi jamgʻarma") { TextField("0", text: $currentText).keyboardType(.decimalPad) }

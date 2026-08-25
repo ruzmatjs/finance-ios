@@ -26,17 +26,18 @@ struct ColorPalettePicker: View {
     }
 }
 
-/// SF Symbol tanlash — kategoriya ikonkasi uchun.
+/// SF Symbol tanlash — kategoriya va maqsad ikonkasi uchun.
 struct SymbolPicker: View {
     @Binding var selection: String
 
     private let symbols = [
-        "fork.knife", "cup.and.saucer.fill", "car.fill", "bus.fill", "fuelpump.fill",
-        "bag.fill", "tshirt.fill", "tv.fill", "gamecontroller.fill", "graduationcap.fill",
-        "heart.fill", "cross.case.fill", "figure.run", "airplane", "bed.double.fill",
-        "person.2.fill", "pawprint.fill", "bolt.fill", "wifi", "iphone",
-        "house.fill", "shield.lefthalf.filled", "gift.fill", "dollarsign.circle.fill",
-        "chart.line.uptrend.xyaxis", "briefcase.fill", "target", "banknote.fill"
+        "target", "airplane", "car.fill", "house.fill", "laptopcomputer", "iphone",
+        "tv.fill", "gamecontroller.fill", "graduationcap.fill", "heart.fill", "cross.case.fill",
+        "figure.run", "bed.double.fill", "person.2.fill", "pawprint.fill", "gift.fill",
+        "dollarsign.circle.fill", "chart.line.uptrend.xyaxis", "briefcase.fill", "banknote.fill",
+        "creditcard.fill", "bag.fill", "fork.knife", "cup.and.saucer.fill", "bus.fill",
+        "fuelpump.fill", "tshirt.fill", "bolt.fill", "wifi", "shield.lefthalf.filled",
+        "building.columns.fill", "cart.fill", "sparkles"
     ]
     private let columns = [GridItem(.adaptive(minimum: 52), spacing: 12)]
 

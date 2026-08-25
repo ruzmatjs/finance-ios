@@ -105,6 +105,18 @@ struct DashboardView: View {
                     ProgressRing(progress: bp.progress, color: bp.isOver ? Theme.Colors.expense : bp.budget.color, size: 56)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(bp.budget.name).font(.body.weight(.medium))
+                        if let categories = bp.budget.categories, !categories.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(categories.prefix(4)) { cat in
+                                    CategoryIconView(symbol: cat.symbol, color: cat.color, size: 20)
+                                }
+                                if categories.count > 4 {
+                                    Text("+\(categories.count - 4)")
+                                        .font(.caption2)
+                                        .foregroundStyle(Theme.Colors.secondaryText)
+                                }
+                            }
+                        }
                         Text("\(CurrencyFormatter.compact(bp.spent, code: vm.currencyCode)) / \(CurrencyFormatter.compact(bp.budget.limitAmount, code: vm.currencyCode))")
                             .font(.caption).foregroundStyle(Theme.Colors.secondaryText)
                         if bp.isOver {

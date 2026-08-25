@@ -61,12 +61,24 @@ struct BudgetsView: View {
 
         return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(budget.name).font(.headline)
                     Text(budget.period.title).font(.caption).foregroundStyle(Theme.Colors.secondaryText)
                 }
                 Spacer()
                 ProgressRing(progress: progress, color: isOver ? Theme.Colors.expense : budget.color, size: 54)
+            }
+            if let categories = budget.categories, !categories.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(categories.prefix(5)) { cat in
+                        CategoryIconView(symbol: cat.symbol, color: cat.color, size: 26)
+                    }
+                    if categories.count > 5 {
+                        Text("+\(categories.count - 5)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Theme.Colors.secondaryText)
+                    }
+                }
             }
             ProgressView(value: min(progress, 1))
                 .tint(isOver ? Theme.Colors.expense : budget.color)
