@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -529,10 +532,10 @@ function viewHome(){
   const debtsMini=`
     <div class="card" role="button" tabindex="0" onclick="nav('debts')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)">
       <div class="between" style="margin-bottom:8px">
-        <h2>🤝 Qarzlar</h2>
-        <span class="link" onclick="nav('debts');event.stopPropagation()">Barchasi ›</span>
+        <h2 style="display:flex;align-items:center;gap:6px">🤝 Qarzlar</h2>
+        <span class="chip on" style="font-size:12px;padding:3px 10px;background:var(--accent);color:#fff;border:none;cursor:pointer" onclick="nav('debts');event.stopPropagation()">Barchasi ›</span>
       </div>
-      <div class="grid2">
+      <div class="grid2" style="pointer-events:none">
         <div><div class="muted" style="font-size:11px">Mendan olishgan (Menga qarz)</div><b class="mono" style="color:var(--income);font-size:15px">+${fmt(lentTot)}</b></div>
         <div><div class="muted" style="font-size:11px">Men olganman (Mening qarzim)</div><b class="mono" style="color:var(--expense);font-size:15px">−${fmt(borrowedTot)}</b></div>
       </div>
@@ -1239,9 +1242,23 @@ function viewSettings(){
     <h2 style="margin-top:14px">Valyuta</h2><div class="seg">${Object.keys(SYM).map(c=>`<button class="${state.currency===c?'on':''}" onclick="setCur('${c}')">${c}</button>`).join('')}</div></div>
   <div class="card"><div class="between"><span>Jami tranzaksiya</span><b>${state.tx.length}</b></div>
     <div class="between" style="margin-top:10px"><span>${cloudOn()?'☁️ Telegram sync':'📱 Faqat shu qurilma'}</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Yoniq':'Oflayn'}</b></div></div>
-  <div class="card"><button class="btn ghost" onclick="exportCSV()">📄 CSV eksport</button>
-    <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button></div>
-  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.0</div>`;}
+  <div class="card">
+    <button class="btn ghost" onclick="forceAppReload()">🔄 Ilovani yangilash (Keshni tozalash)</button>
+    <button class="btn ghost" style="margin-top:10px" onclick="exportCSV()">📄 CSV eksport</button>
+    <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
+  </div>
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.2.0</div>`;}
+
+function forceAppReload(){
+  haptic('medium');
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', String(Date.now()));
+    window.location.replace(url.toString());
+  } catch(e){
+    window.location.reload();
+  }
+}
 
 function emptyMini(t){return `<div class="empty"><div style="font-size:30px">📭</div>${t}</div>`}
 function emptyBig(e,t,m){return `<div class="empty card"><div class="e">${e}</div><h2>${t}</h2><div style="margin-top:6px">${m}</div></div>`}
