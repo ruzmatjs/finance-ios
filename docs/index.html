@@ -378,21 +378,45 @@ function sameDay(a,b){
   const da=new Date(a),db=new Date(b);
   return !isNaN(da.getTime())&&!isNaN(db.getTime())&&da.toDateString()===db.toDateString();
 }
+function parseSafeDate(d){
+  if(!d) return null;
+  if(d instanceof Date) return isNaN(d.getTime()) ? null : d;
+  if(typeof d === 'number') {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? null : dt;
+  }
+  if(typeof d === 'string') {
+    const s = d.trim();
+    if(!s) return null;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+      const parts = s.split('-');
+      const dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10)-1, parseInt(parts[2], 10), 12, 0, 0);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+    const dt = new Date(s);
+    if(!isNaN(dt.getTime())) return dt;
+    const dt2 = new Date(s.replace(/-/g, '/'));
+    if(!isNaN(dt2.getTime())) return dt2;
+  }
+  return null;
+}
 function fmtD(d,o){
-  if(!d) return '';
-  const dt=new Date(d);
-  return isNaN(dt.getTime()) ? '' : dt.toLocaleDateString('ru-RU',o||{day:'numeric',month:'short'});
+  const dt = parseSafeDate(d);
+  if(!dt) return '';
+  try {
+    return dt.toLocaleDateString('ru-RU', o || {day:'numeric', month:'short'});
+  } catch(e){
+    return `${dt.getDate()}.${dt.getMonth()+1}.${dt.getFullYear()}`;
+  }
 }
 function toLocalInput(d){
-  const x=new Date(d||Date.now());
-  if(isNaN(x.getTime())) return '';
-  const p=n=>String(n).padStart(2,'0');
+  const x = parseSafeDate(d) || new Date();
+  const p = n => String(n).padStart(2,'0');
   return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`;
 }
 function toDateInput(d){
-  const x=new Date(d||Date.now());
-  if(isNaN(x.getTime())) return '';
-  const p=n=>String(n).padStart(2,'0');
+  const x = parseSafeDate(d) || new Date();
+  const p = n => String(n).padStart(2,'0');
   return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}`;
 }
 
@@ -499,14 +523,14 @@ function viewHome(){
     ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
     : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
   
-  const activeDebts=(state.debts||[]).filter(d=>d.status!=='settled');
-  const lentTot=activeDebts.filter(d=>d.type==='lend').reduce((s,d)=>s+Math.max(0,d.amount-(d.paid||0)),0);
-  const borrowedTot=activeDebts.filter(d=>d.type==='borrow').reduce((s,d)=>s+Math.max(0,d.amount-(d.paid||0)),0);
+  const activeDebts=(state.debts||[]).filter(d=>d&&typeof d==='object'&&(d.status||'active')!=='settled');
+  const lentTot=activeDebts.filter(d=>d.type==='lend').reduce((s,d)=>s+Math.max(0,(parseFloat(d.amount)||0)-(parseFloat(d.paid)||0)),0);
+  const borrowedTot=activeDebts.filter(d=>d.type==='borrow').reduce((s,d)=>s+Math.max(0,(parseFloat(d.amount)||0)-(parseFloat(d.paid)||0)),0);
   const debtsMini=`
-    <div class="card" onclick="nav('debts')" style="cursor:pointer">
+    <div class="card" role="button" tabindex="0" onclick="nav('debts')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)">
       <div class="between" style="margin-bottom:8px">
         <h2>🤝 Qarzlar</h2>
-        <span class="link">Barchasi ›</span>
+        <span class="link" onclick="nav('debts');event.stopPropagation()">Barchasi ›</span>
       </div>
       <div class="grid2">
         <div><div class="muted" style="font-size:11px">Mendan olishgan (Menga qarz)</div><b class="mono" style="color:var(--income);font-size:15px">+${fmt(lentTot)}</b></div>
@@ -911,92 +935,104 @@ function viewAccounts(){
 // ============ QARZLAR ============
 let debtFilterTab = 'lend'; // 'lend', 'borrow', 'settled'
 function viewDebts(){
-  const allDebts = state.debts || [];
-  const activeDebts = allDebts.filter(d => d.status !== 'settled');
-  const lentTot = activeDebts.filter(d => d.type === 'lend').reduce((s, d) => s + Math.max(0, d.amount - (d.paid || 0)), 0);
-  const borrowedTot = activeDebts.filter(d => d.type === 'borrow').reduce((s, d) => s + Math.max(0, d.amount - (d.paid || 0)), 0);
-  const netDebt = lentTot - borrowedTot;
+  try {
+    const allDebts = (state.debts || []).filter(d => d && typeof d === 'object');
+    const activeDebts = allDebts.filter(d => (d.status || 'active') !== 'settled');
+    const lentTot = activeDebts.filter(d => d.type === 'lend').reduce((s, d) => s + Math.max(0, (parseFloat(d.amount)||0) - (parseFloat(d.paid) || 0)), 0);
+    const borrowedTot = activeDebts.filter(d => d.type === 'borrow').reduce((s, d) => s + Math.max(0, (parseFloat(d.amount)||0) - (parseFloat(d.paid) || 0)), 0);
+    const netDebt = lentTot - borrowedTot;
 
-  let currentList = [];
-  if(debtFilterTab === 'lend') {
-    currentList = allDebts.filter(d => d.type === 'lend' && d.status !== 'settled');
-  } else if(debtFilterTab === 'borrow') {
-    currentList = allDebts.filter(d => d.type === 'borrow' && d.status !== 'settled');
-  } else {
-    currentList = allDebts.filter(d => d.status === 'settled');
-  }
+    let currentList = [];
+    if(debtFilterTab === 'lend') {
+      currentList = allDebts.filter(d => d.type === 'lend' && (d.status || 'active') !== 'settled');
+    } else if(debtFilterTab === 'borrow') {
+      currentList = allDebts.filter(d => d.type === 'borrow' && (d.status || 'active') !== 'settled');
+    } else {
+      currentList = allDebts.filter(d => d.status === 'settled');
+    }
 
-  let html = head('Qarzlar', tab || 'home') +
-    `<div class="grid2">
-      <div class="card" style="margin-bottom:0">
-        <div class="muted" style="font-size:12px">Mendan olishgan (Menga qarz)</div>
-        <div class="v mono" style="color:var(--income);font-size:18px;font-weight:800;margin-top:4px">+${fmt(lentTot)}</div>
+    let html = head('Qarzlar', tab || 'home') +
+      `<div class="grid2">
+        <div class="card" style="margin-bottom:0">
+          <div class="muted" style="font-size:12px">Mendan olishgan (Menga qarz)</div>
+          <div class="v mono" style="color:var(--income);font-size:18px;font-weight:800;margin-top:4px">+${fmt(lentTot)}</div>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <div class="muted" style="font-size:12px">Men olganman (Mening qarzim)</div>
+          <div class="v mono" style="color:var(--expense);font-size:18px;font-weight:800;margin-top:4px">−${fmt(borrowedTot)}</div>
+        </div>
       </div>
-      <div class="card" style="margin-bottom:0">
-        <div class="muted" style="font-size:12px">Men olganman (Mening qarzim)</div>
-        <div class="v mono" style="color:var(--expense);font-size:18px;font-weight:800;margin-top:4px">−${fmt(borrowedTot)}</div>
+      <div class="card" style="padding:10px 14px;margin-top:10px">
+        <div class="between"><span class="muted" style="font-size:13px">Sof qarz holati:</span><b class="mono" style="color:${netDebt>=0?'var(--income)':'var(--expense)'}">${fmtSigned(netDebt)}</b></div>
       </div>
-    </div>
-    <div class="card" style="padding:10px 14px;margin-top:10px">
-      <div class="between"><span class="muted" style="font-size:13px">Sof qarz holati:</span><b class="mono" style="color:${netDebt>=0?'var(--income)':'var(--expense)'}">${fmtSigned(netDebt)}</b></div>
-    </div>
-    <div class="seg" style="margin:12px 0">
-      <button class="${debtFilterTab==='lend'?'on':''}" onclick="debtFilterTab='lend';render()">🟢 Mendan olganlar (${allDebts.filter(d=>d.type==='lend'&&d.status!=='settled').length})</button>
-      <button class="${debtFilterTab==='borrow'?'on':''}" onclick="debtFilterTab='borrow';render()">🔴 Men olganlar (${allDebts.filter(d=>d.type==='borrow'&&d.status!=='settled').length})</button>
-      <button class="${debtFilterTab==='settled'?'on':''}" onclick="debtFilterTab='settled';render()">✓ Yopilganlar (${allDebts.filter(d=>d.status==='settled').length})</button>
-    </div>`;
+      <div class="seg" style="margin:12px 0">
+        <button class="${debtFilterTab==='lend'?'on':''}" onclick="debtFilterTab='lend';render()">🟢 Mendan olganlar (${allDebts.filter(d=>d.type==='lend'&&(d.status||'active')!=='settled').length})</button>
+        <button class="${debtFilterTab==='borrow'?'on':''}" onclick="debtFilterTab='borrow';render()">🔴 Men olganlar (${allDebts.filter(d=>d.type==='borrow'&&(d.status||'active')!=='settled').length})</button>
+        <button class="${debtFilterTab==='settled'?'on':''}" onclick="debtFilterTab='settled';render()">✓ Yopilganlar (${allDebts.filter(d=>d.status==='settled').length})</button>
+      </div>`;
 
-  if(!currentList.length){
-    html += emptyBig('🤝', 'Qarzlar yoʻq', debtFilterTab==='lend'?'Sizdan qarz olganlar yoʻq':(debtFilterTab==='borrow'?'Siz olgan qarzlar yoʻq':'Yopilgan qarzlar tarixi mavjud emas'));
-  } else {
-    html += currentList.map(d => {
-      const remaining = Math.max(0, d.amount - (d.paid || 0));
-      const isLend = d.type === 'lend';
-      const isSettled = d.status === 'settled';
-      const acc = accBy(d.accountId);
-      const prog = d.amount > 0 ? Math.min(100, Math.round(((d.paid || 0) / d.amount) * 100)) : 0;
-      
-      return `<div class="card">
-        <div class="between" style="margin-bottom:6px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="cic" style="width:36px;height:36px;font-size:16px;background:${isLend?'var(--income)':'var(--expense)'}22">${isLend?'👤':'👥'}</div>
-            <div>
-              <div style="font-weight:700;font-size:15px">${esc(d.person)}</div>
-              <div class="meta muted" style="font-size:11px">${acc.e} ${acc.name} · 🗓 ${isLend?'Berildi':'Olindi'}: ${fmtD(d.date)} ${d.dueDate ? `· ⏳ Muddat: ${fmtD(d.dueDate)}` : ''}</div>
+    if(!currentList.length){
+      html += emptyBig('🤝', 'Qarzlar yoʻq', debtFilterTab==='lend'?'Sizdan qarz olganlar yoʻq':(debtFilterTab==='borrow'?'Siz olgan qarzlar yoʻq':'Yopilgan qarzlar tarixi mavjud emas'));
+    } else {
+      html += currentList.map(d => {
+        const dAmt = parseFloat(d.amount) || 0;
+        const dPaid = parseFloat(d.paid) || 0;
+        const remaining = Math.max(0, dAmt - dPaid);
+        const isLend = d.type === 'lend';
+        const isSettled = (d.status === 'settled') || (dPaid >= dAmt && dAmt > 0);
+        const acc = accBy(d.accountId);
+        const prog = dAmt > 0 ? Math.min(100, Math.round((dPaid / dAmt) * 100)) : 0;
+        const personName = esc(d.person || 'Shaxs (Qarz)');
+        const dateStr = fmtD(d.date);
+        const dueStr = d.dueDate ? fmtD(d.dueDate) : '';
+        
+        return `<div class="card">
+          <div class="between" style="margin-bottom:6px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="cic" style="width:36px;height:36px;font-size:16px;background:${isLend?'var(--income)':'var(--expense)'}22">${isLend?'👤':'👥'}</div>
+              <div>
+                <div style="font-weight:700;font-size:15px">${personName}</div>
+                <div class="meta muted" style="font-size:11px">${acc.e} ${acc.name} · 🗓 ${isLend?'Berildi':'Olindi'}: ${dateStr} ${dueStr ? `· ⏳ Muddat: ${dueStr}` : ''}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div class="mono" style="font-weight:800;font-size:16px;color:${isSettled?'var(--text2)':(isLend?'var(--income)':'var(--expense)')}">${isSettled ? '✓ Yopildi' : fmt(remaining)}</div>
+              ${dPaid > 0 && !isSettled ? `<div class="meta muted" style="font-size:11px">Jami: ${fmt(dAmt)}</div>` : ''}
             </div>
           </div>
-          <div style="text-align:right">
-            <div class="mono" style="font-weight:800;font-size:16px;color:${isSettled?'var(--text2)':(isLend?'var(--income)':'var(--expense)')}">${isSettled ? '✓ Yopildi' : fmt(remaining)}</div>
-            ${d.paid > 0 && !isSettled ? `<div class="meta muted" style="font-size:11px">Jami: ${fmt(d.amount)}</div>` : ''}
-          </div>
-        </div>
-        ${d.note ? `<div style="font-size:12px;color:var(--text2);margin:4px 0">${esc(d.note)}</div>` : ''}
-        ${d.paid > 0 && !isSettled ? `
-          <div class="prog" style="margin:8px 0 4px"><i style="width:${prog}%;background:${isLend?'var(--income)':'var(--expense)'}"></i></div>
-          <div class="between" style="font-size:11px;color:var(--text2)">
-            <span>Qaytarildi: ${compact(d.paid)} (${prog}%)</span>
-            <span>Qoldi: ${compact(remaining)}</span>
-          </div>
-        ` : ''}
-        <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep);gap:8px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:8px">
-            ${!isSettled ? `
-              <button class="chip on" style="background:${isLend?'var(--income)':'var(--expense)'};border:none;padding:6px 14px" onclick="openRepay('${d.id}')">
-                ${isLend ? '📥 Qaytarib oldim' : '📤 Qaytarib berdim'}
+          ${d.note ? `<div style="font-size:12px;color:var(--text2);margin:4px 0">${esc(d.note)}</div>` : ''}
+          ${dPaid > 0 && !isSettled ? `
+            <div class="prog" style="margin:8px 0 4px"><i style="width:${prog}%;background:${isLend?'var(--income)':'var(--expense)'}"></i></div>
+            <div class="between" style="font-size:11px;color:var(--text2)">
+              <span>Qaytarildi: ${compact(dPaid)} (${prog}%)</span>
+              <span>Qoldi: ${compact(remaining)}</span>
+            </div>
+          ` : ''}
+          <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep);gap:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px">
+              ${!isSettled ? `
+                <button class="chip on" style="background:${isLend?'var(--income)':'var(--expense)'};border:none;padding:6px 14px;cursor:pointer" onclick="openRepay('${d.id}')">
+                  ${isLend ? '📥 Qaytarib oldim' : '📤 Qaytarib berdim'}
+                </button>
+              ` : `<span style="font-size:12px;color:var(--income);font-weight:600">✓ Toʻliq qaytarilgan</span>`}
+              <button class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(10,132,255,0.12);color:var(--accent2);border-color:rgba(10,132,255,0.3);font-weight:600;cursor:pointer" onclick="forwardDebtTelegram('${d.id}')">
+                <span>✈️</span> Telegram
               </button>
-            ` : `<span style="font-size:12px;color:var(--income);font-weight:600">✓ Toʻliq qaytarilgan</span>`}
-            <button class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(10,132,255,0.12);color:var(--accent2);border-color:rgba(10,132,255,0.3);font-weight:600" onclick="forwardDebtTelegram('${d.id}')">
-              <span>✈️</span> Telegram
-            </button>
+            </div>
+            <span class="link" onclick="openDebt('${d.id}')" style="font-size:12px;cursor:pointer">Tahrirlash ›</span>
           </div>
-          <span class="link" onclick="openDebt('${d.id}')" style="font-size:12px">Tahrirlash ›</span>
-        </div>
-      </div>`;
-    }).join('');
-  }
+        </div>`;
+      }).join('');
+    }
 
-  html += `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
-  return html;
+    html += `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
+    return html;
+  } catch(err) {
+    console.error("viewDebts error:", err);
+    return head('Qarzlar', tab || 'home') +
+      `<div class="card"><div style="color:var(--expense);font-weight:bold;margin-bottom:8px">⚠️ Xatolik yuz berdi</div><div class="muted" style="font-size:13px">${err.message}</div></div>` +
+      `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
+  }
 }
 // ============ XARIDLAR REJASI (WISHLIST) ============
 let wishFilterTab = 'planned'; // 'planned', 'bought'
@@ -1520,41 +1556,87 @@ function delDebt(id){
 }
 
 function forwardDebtTelegram(id){
-  const d = (state.debts||[]).find(x => x.id === id);
-  if(!d) return;
-  haptic('medium');
-  const isLend = d.type === 'lend';
-  const remaining = Math.max(0, (d.amount || 0) - (d.paid || 0));
-  const isSettled = d.status === 'settled';
-  const dateStr = fmtD(d.date, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.date);
-  const dueStr = d.dueDate ? (fmtD(d.dueDate, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.dueDate)) : null;
-  const acc = accBy(d.accountId);
+  try {
+    const d = (state.debts||[]).find(x => x && x.id === id);
+    if(!d) {
+      alert('Qarz topilmadi');
+      return;
+    }
+    haptic('medium');
+    const isLend = d.type === 'lend';
+    const dAmt = parseFloat(d.amount) || 0;
+    const dPaid = parseFloat(d.paid) || 0;
+    const remaining = Math.max(0, dAmt - dPaid);
+    const isSettled = (d.status === 'settled') || (dPaid >= dAmt && dAmt > 0);
+    const dateStr = fmtD(d.date, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.date);
+    const dueStr = d.dueDate ? (fmtD(d.dueDate, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.dueDate)) : null;
+    const acc = accBy(d.accountId);
 
-  let msg = `🤝 *Qarz maʼlumoti (Eslatma)*\n\n`;
-  msg += isLend ? `👤 *Kimga (Qarz oluvchi):* ${d.person}\n` : `👤 *Kimdan (Qarz beruvchi):* ${d.person}\n`;
-  msg += `💰 *Qarz summasi:* ${fmt(d.amount)}\n`;
-  msg += `🗓 *${isLend ? 'Qarz berilgan sana' : 'Qarz olingan sana'}:* ${dateStr}\n`;
-  if(dueStr) {
-    msg += `⏳ *Qaytarish muddati:* ${dueStr}\n`;
-  }
-  if(d.paid > 0 && !isSettled) {
-    msg += `💵 *Qaytarildi:* ${fmt(d.paid)}\n`;
-    msg += `⚖️ *Qolgan qarz:* ${fmt(remaining)}\n`;
-  }
-  msg += `📌 *Holati:* ${isSettled ? '✅ Toʻliq yopilgan' : '⏳ Qaytarilishi kutilmoqda'}\n`;
-  if(acc && acc.name) {
-    msg += `💼 *Hisob:* ${acc.name}\n`;
-  }
-  if(d.note && d.note.trim()) {
-    msg += `📝 *Izoh:* ${d.note.trim()}\n`;
-  }
-  msg += `\n📱 _Finance ilovasi orqali yuborildi_`;
+    let msg = `🤝 Qarz maʼlumoti (Eslatma)\n\n`;
+    msg += isLend ? `👤 Kimga (Qarz oluvchi): ${d.person || '—'}\n` : `👤 Kimdan (Qarz beruvchi): ${d.person || '—'}\n`;
+    msg += `💰 Qarz summasi: ${fmt(dAmt)}\n`;
+    msg += `🗓 ${isLend ? 'Qarz berilgan sana' : 'Qarz olingan sana'}: ${dateStr}\n`;
+    if(dueStr) {
+      msg += `⏳ Qaytarish muddati: ${dueStr}\n`;
+    }
+    if(dPaid > 0 && !isSettled) {
+      msg += `💵 Qaytarildi: ${fmt(dPaid)}\n`;
+      msg += `⚖️ Qolgan qarz: ${fmt(remaining)}\n`;
+    }
+    msg += `📌 Holati: ${isSettled ? '✅ Toʻliq yopilgan' : '⏳ Qaytarilishi kutilmoqda'}\n`;
+    if(acc && acc.name && acc.name !== '—') {
+      msg += `💼 Hisob: ${acc.name}\n`;
+    }
+    if(d.note && d.note.trim()) {
+      msg += `📝 Izoh: ${d.note.trim()}\n`;
+    }
+    msg += `\n📱 Finance ilovasi orqali yuborildi`;
 
-  const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(msg)}`;
-  if(window.Telegram?.WebApp?.openTelegramLink){
-    window.Telegram.WebApp.openTelegramLink(shareUrl);
-  } else {
-    window.open(shareUrl, '_blank');
+    // Try copy to clipboard as quick fallback
+    try {
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(msg).catch(()=>{});
+      }
+    } catch(e){}
+
+    const shareUrl = `https://t.me/share/url?url=https://t.me&text=${encodeURIComponent(msg)}`;
+
+    if(window.Telegram?.WebApp?.openTelegramLink){
+      try {
+        window.Telegram.WebApp.openTelegramLink(shareUrl);
+        notify('success');
+        return;
+      } catch(e){
+        console.error("openTelegramLink error:", e);
+      }
+    }
+
+    if(window.Telegram?.WebApp?.openLink){
+      try {
+        window.Telegram.WebApp.openLink(shareUrl);
+        notify('success');
+        return;
+      } catch(e){
+        console.error("openLink error:", e);
+      }
+    }
+
+    // Standard browser fallback
+    try {
+      const a = document.createElement('a');
+      a.href = shareUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { try{ document.body.removeChild(a); }catch(e){} }, 200);
+    } catch(e){
+      window.location.href = shareUrl;
+    }
+    notify('success');
+  } catch(err) {
+    console.error("forwardDebtTelegram error:", err);
+    alert('Telegram orqali yuborishda xatolik: ' + err.message);
   }
 }
 
