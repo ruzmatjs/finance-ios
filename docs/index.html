@@ -389,6 +389,12 @@ function toLocalInput(d){
   const p=n=>String(n).padStart(2,'0');
   return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`;
 }
+function toDateInput(d){
+  const x=new Date(d||Date.now());
+  if(isNaN(x.getTime())) return '';
+  const p=n=>String(n).padStart(2,'0');
+  return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}`;
+}
 
 // ============ Balans ============
 function signed(t){return t.type==='income'?t.amount:t.type==='expense'?-t.amount:0}
@@ -956,7 +962,7 @@ function viewDebts(){
             <div class="cic" style="width:36px;height:36px;font-size:16px;background:${isLend?'var(--income)':'var(--expense)'}22">${isLend?'👤':'👥'}</div>
             <div>
               <div style="font-weight:700;font-size:15px">${esc(d.person)}</div>
-              <div class="meta muted" style="font-size:11px">${acc.e} ${acc.name} · ${fmtD(d.date)} ${d.dueDate ? `· Muddat: ${fmtD(d.dueDate)}` : ''}</div>
+              <div class="meta muted" style="font-size:11px">${acc.e} ${acc.name} · 🗓 ${isLend?'Berildi':'Olindi'}: ${fmtD(d.date)} ${d.dueDate ? `· ⏳ Muddat: ${fmtD(d.dueDate)}` : ''}</div>
             </div>
           </div>
           <div style="text-align:right">
@@ -972,12 +978,17 @@ function viewDebts(){
             <span>Qoldi: ${compact(remaining)}</span>
           </div>
         ` : ''}
-        <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep)">
-          ${!isSettled ? `
-            <button class="chip on" style="background:${isLend?'var(--income)':'var(--expense)'};border:none;padding:6px 14px" onclick="openRepay('${d.id}')">
-              ${isLend ? '📥 Qaytarib oldim' : '📤 Qaytarib berdim'}
+        <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep);gap:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px">
+            ${!isSettled ? `
+              <button class="chip on" style="background:${isLend?'var(--income)':'var(--expense)'};border:none;padding:6px 14px" onclick="openRepay('${d.id}')">
+                ${isLend ? '📥 Qaytarib oldim' : '📤 Qaytarib berdim'}
+              </button>
+            ` : `<span style="font-size:12px;color:var(--income);font-weight:600">✓ Toʻliq qaytarilgan</span>`}
+            <button class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(10,132,255,0.12);color:var(--accent2);border-color:rgba(10,132,255,0.3);font-weight:600" onclick="forwardDebtTelegram('${d.id}')">
+              <span>✈️</span> Telegram
             </button>
-          ` : `<span style="font-size:12px;color:var(--income);font-weight:600">✓ Toʻliq qaytarilgan</span>`}
+          </div>
           <span class="link" onclick="openDebt('${d.id}')" style="font-size:12px">Tahrirlash ›</span>
         </div>
       </div>`;
@@ -1333,7 +1344,12 @@ function delAccount(id){if(!confirm('Hisob oʼchirilsinmi?'))return;state.accoun
 // ============ SHEET: Qarz (qoʼshish/tahrirlash) ============
 function openDebt(id){
   const ex = id ? state.debts.find(d => d.id === id) : null;
-  form = ex ? { ...ex, edit: id } : {
+  form = ex ? { 
+    ...ex, 
+    edit: id,
+    date: ex.date ? toDateInput(ex.date) : toDateInput(),
+    dueDate: ex.dueDate ? toDateInput(ex.dueDate) : ''
+  } : {
     type: debtFilterTab === 'borrow' ? 'borrow' : 'lend',
     person: '',
     amount: '',
@@ -1341,13 +1357,14 @@ function openDebt(id){
     accountId: state.accounts[0]?.id || 'cash',
     dueDate: '',
     note: '',
-    date: new Date().toISOString()
+    date: toDateInput()
   };
   openSheet(debtSheet);
   haptic('medium');
 }
 
 function debtSheet(){
+  const isLend = form.type === 'lend';
   return `<div class="between"><h2>${form.edit ? 'Qarzni tahrirlash' : 'Yangi qarz'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
   <div class="seg">
     <button class="${form.type==='lend'?'on':''}" onclick="saveDebtInputs();form.type='lend';reSheet()">🟢 Men berdim (Mendan olishdi)</button>
@@ -1357,19 +1374,35 @@ function debtSheet(){
   <input id="dperson" placeholder="Masalan: Ali, Akam, Rustam" value="${esc(form.person||'')}" oninput="form.person=this.value">
   <label class="fld">Summa</label>
   <input class="amtinput" id="damt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatDebtAmtInput(this)">
-  <label class="fld">${form.type==='lend'?'Qaysi hisobdan berildi':'Qaysi hisobga qabul qilindi'}</label>
+  
+  <label class="fld">${isLend ? 'Qarz berilgan sana' : 'Qarz olingan sana'}</label>
+  <input type="date" id="ddate" value="${form.date || toDateInput()}" oninput="form.date=this.value">
+
+  <label class="fld">${isLend ? 'Qaysi hisobdan berildi' : 'Qaysi hisobga qabul qilindi'}</label>
   <select id="dacc" onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
+  
   <label class="fld">Qaytarish muddati (Ixtiyoriy)</label>
   <input type="date" id="ddue" value="${form.dueDate||''}" oninput="form.dueDate=this.value">
+  
   <label class="fld">Izoh</label>
   <input id="dnote" placeholder="Ixtiyoriy izoh" value="${esc(form.note||'')}" oninput="form.note=this.value">
+  
   <button class="btn" onclick="saveDebt()">Saqlash</button>
-  ${form.edit ? `<button class="btn danger" onclick="delDebt('${form.edit}')">Oʻchirish</button>` : ''}`;
+  
+  ${form.edit ? `
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn ghost" style="flex:1;margin:0;display:flex;align-items:center;justify-content:center;gap:6px" onclick="forwardDebtTelegram('${form.edit}')">
+        <span>✈️</span> Telegramda yuborish
+      </button>
+      <button class="btn danger" style="flex:1;margin:0" onclick="delDebt('${form.edit}')">Oʻchirish</button>
+    </div>
+  ` : ''}`;
 }
 
 function saveDebtInputs(){
   const pEl = document.getElementById('dperson'); if(pEl&&typeof pEl.value==='string') form.person = pEl.value;
   const aEl = document.getElementById('damt'); if(aEl&&typeof aEl.value==='string') form.amount = aEl.value.replace(/\s/g,'').replace(/,/g,'.');
+  const dEl = document.getElementById('ddate'); if(dEl&&typeof dEl.value==='string') form.date = dEl.value;
   const accEl = document.getElementById('dacc'); if(accEl&&typeof accEl.value==='string') form.accountId = accEl.value;
   const dueEl = document.getElementById('ddue'); if(dueEl&&typeof dueEl.value==='string') form.dueDate = dueEl.value;
   const noteEl = document.getElementById('dnote'); if(noteEl&&typeof noteEl.value==='string') form.note = noteEl.value;
@@ -1407,6 +1440,7 @@ function saveDebt(){
   const personName = form.person.trim();
   const noteText = form.note ? form.note.trim() : '';
   const txType = form.type === 'lend' ? 'expense' : 'income';
+  const debtDate = form.date ? (form.date.includes('T') ? form.date : new Date(form.date + 'T12:00:00').toISOString()) : new Date().toISOString();
 
   if(form.edit){
     const d = state.debts.find(x => x.id === form.edit);
@@ -1415,6 +1449,7 @@ function saveDebt(){
       d.amount = amt;
       d.type = form.type;
       d.accountId = form.accountId;
+      d.date = debtDate;
       d.dueDate = form.dueDate || '';
       d.note = noteText;
       if((d.paid || 0) >= d.amount) d.status = 'settled';
@@ -1427,6 +1462,7 @@ function saveDebt(){
           t.type = txType;
           t.accountId = form.accountId;
           t.merchant = personName;
+          t.date = debtDate;
           t.note = form.type === 'lend' ? `Qarz berildi: ${personName}` : `Qarz olindi: ${personName}`;
           if(noteText) t.note += ` (${noteText})`;
         }
@@ -1444,7 +1480,7 @@ function saveDebt(){
       accountId: form.accountId,
       dueDate: form.dueDate || '',
       note: noteText,
-      date: new Date().toISOString(),
+      date: debtDate,
       status: 'active'
     };
     state.debts.push(newDebt);
@@ -1460,7 +1496,7 @@ function saveDebt(){
       accountId: form.accountId,
       merchant: personName,
       note: defaultTxNote,
-      date: newDebt.date,
+      date: debtDate,
       fav: false
     });
   }
@@ -1481,6 +1517,45 @@ function delDebt(id){
   closeSheet();
   notify('warning');
   render();
+}
+
+function forwardDebtTelegram(id){
+  const d = (state.debts||[]).find(x => x.id === id);
+  if(!d) return;
+  haptic('medium');
+  const isLend = d.type === 'lend';
+  const remaining = Math.max(0, (d.amount || 0) - (d.paid || 0));
+  const isSettled = d.status === 'settled';
+  const dateStr = fmtD(d.date, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.date);
+  const dueStr = d.dueDate ? (fmtD(d.dueDate, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.dueDate)) : null;
+  const acc = accBy(d.accountId);
+
+  let msg = `🤝 *Qarz maʼlumoti (Eslatma)*\n\n`;
+  msg += isLend ? `👤 *Kimga (Qarz oluvchi):* ${d.person}\n` : `👤 *Kimdan (Qarz beruvchi):* ${d.person}\n`;
+  msg += `💰 *Qarz summasi:* ${fmt(d.amount)}\n`;
+  msg += `🗓 *${isLend ? 'Qarz berilgan sana' : 'Qarz olingan sana'}:* ${dateStr}\n`;
+  if(dueStr) {
+    msg += `⏳ *Qaytarish muddati:* ${dueStr}\n`;
+  }
+  if(d.paid > 0 && !isSettled) {
+    msg += `💵 *Qaytarildi:* ${fmt(d.paid)}\n`;
+    msg += `⚖️ *Qolgan qarz:* ${fmt(remaining)}\n`;
+  }
+  msg += `📌 *Holati:* ${isSettled ? '✅ Toʻliq yopilgan' : '⏳ Qaytarilishi kutilmoqda'}\n`;
+  if(acc && acc.name) {
+    msg += `💼 *Hisob:* ${acc.name}\n`;
+  }
+  if(d.note && d.note.trim()) {
+    msg += `📝 *Izoh:* ${d.note.trim()}\n`;
+  }
+  msg += `\n📱 _Finance ilovasi orqali yuborildi_`;
+
+  const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(msg)}`;
+  if(window.Telegram?.WebApp?.openTelegramLink){
+    window.Telegram.WebApp.openTelegramLink(shareUrl);
+  } else {
+    window.open(shareUrl, '_blank');
+  }
 }
 
 // ============ SHEET: Qarzni qaytarish (Oldim / Berdim) ============

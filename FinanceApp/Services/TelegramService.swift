@@ -242,4 +242,90 @@ enum TelegramService {
         // Faqat matn boʻlsa yoki fayl yasalmagan boʻlsa
         try await sendMessage(token: token, chatId: chatId, text: summaryText, parseMode: "HTML")
     }
+
+    // MARK: - Qarz maʼlumotlarini shakllantirish va ulashish
+
+    /// Qarz maʼlumotini Telegram xabar matniga aylantiradi.
+    static func buildDebtSummaryText(person: String,
+                                     amount: Double,
+                                     paid: Double,
+                                     type: DebtType,
+                                     isSettled: Bool,
+                                     date: Date,
+                                     dueDate: Date?,
+                                     currency: String,
+                                     note: String?) -> String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "uz_UZ")
+        df.dateFormat = "d-MMMM, yyyy"
+
+        let isLend = type == .lend
+        let remaining = max(amount - paid, 0)
+
+        var text = "🤝 <b>Qarz maʼlumoti (Eslatma)</b>\n\n"
+        text += isLend ? "👤 <b>Kimga (Qarz oluvchi):</b> \(person)\n" : "👤 <b>Kimdan (Qarz beruvchi):</b> \(person)\n"
+        text += "💰 <b>Qarz summasi:</b> \(CurrencyFormatter.string(amount, code: currency))\n"
+        text += "🗓 <b>\(isLend ? "Qarz berilgan sana" : "Qarz olingan sana"):</b> \(df.string(from: date))\n"
+
+        if let dueDate = dueDate {
+            text += "⏳ <b>Qaytarish muddati:</b> \(df.string(from: dueDate))\n"
+        }
+
+        if paid > 0 && !isSettled {
+            text += "💵 <b>Qaytarildi:</b> \(CurrencyFormatter.string(paid, code: currency))\n"
+            text += "⚖️ <b>Qolgan qarz:</b> \(CurrencyFormatter.string(remaining, code: currency))\n"
+        }
+
+        text += "📌 <b>Holati:</b> \(isSettled ? "✅ Toʻliq yopilgan" : "⏳ Qaytarilishi kutilmoqda")\n"
+
+        if let note = note, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            text += "📝 <b>Izoh:</b> \(note.trimmingCharacters(in: .whitespacesAndNewlines))\n"
+        }
+
+        text += "\n📱 <i>FinanceApp orqali yuborildi</i>"
+        return text
+    }
+
+    /// Telegram orqali ulashish URL havolasini qaytaradi (t.me/share/url).
+    static func debtShareURL(person: String,
+                             amount: Double,
+                             paid: Double,
+                             type: DebtType,
+                             isSettled: Bool,
+                             date: Date,
+                             dueDate: Date?,
+                             currency: String,
+                             note: String?) -> URL? {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "uz_UZ")
+        df.dateFormat = "d-MMMM, yyyy"
+
+        let isLend = type == .lend
+        let remaining = max(amount - paid, 0)
+
+        var text = "🤝 Qarz maʼlumoti (Eslatma)\n\n"
+        text += isLend ? "👤 Kimga: \(person)\n" : "👤 Kimdan: \(person)\n"
+        text += "💰 Qarz summasi: \(CurrencyFormatter.string(amount, code: currency))\n"
+        text += "🗓 \(isLend ? "Qarz berilgan sana" : "Qarz olingan sana"): \(df.string(from: date))\n"
+
+        if let dueDate = dueDate {
+            text += "⏳ Qaytarish muddati: \(df.string(from: dueDate))\n"
+        }
+
+        if paid > 0 && !isSettled {
+            text += "💵 Qaytarildi: \(CurrencyFormatter.string(paid, code: currency))\n"
+            text += "⚖️ Qolgan qarz: \(CurrencyFormatter.string(remaining, code: currency))\n"
+        }
+
+        text += "📌 Holati: \(isSettled ? "✅ Toʻliq yopilgan" : "⏳ Qaytarilishi kutilmoqda")\n"
+
+        if let note = note, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            text += "📝 Izoh: \(note.trimmingCharacters(in: .whitespacesAndNewlines))\n"
+        }
+
+        text += "\n📱 FinanceApp orqali yuborildi"
+
+        guard let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        return URL(string: "https://t.me/share/url?url=&text=\(encoded)")
+    }
 }

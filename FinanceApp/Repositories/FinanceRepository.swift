@@ -22,6 +22,11 @@ protocol FinanceRepositoryProtocol {
     func fetchGoals() -> [Goal]
     func fetchRecurring() -> [RecurringTransaction]
 
+    // Debts
+    func fetchDebts() -> [Debt]
+    func add(_ debt: Debt)
+    func delete(_ debt: Debt)
+
     func save()
 }
 
@@ -96,6 +101,21 @@ final class FinanceRepository: FinanceRepositoryProtocol {
 
     func fetchRecurring() -> [RecurringTransaction] {
         (try? context.fetch(FetchDescriptor<RecurringTransaction>(sortBy: [SortDescriptor(\.nextDueDate)]))) ?? []
+    }
+
+    // MARK: Debts
+    func fetchDebts() -> [Debt] {
+        (try? context.fetch(FetchDescriptor<Debt>(sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? []
+    }
+
+    func add(_ debt: Debt) {
+        context.insert(debt)
+        save()
+    }
+
+    func delete(_ debt: Debt) {
+        context.delete(debt)
+        save()
     }
 
     func save() {

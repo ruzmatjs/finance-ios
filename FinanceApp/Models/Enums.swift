@@ -114,3 +114,32 @@ enum ReportRange: String, CaseIterable, Identifiable {
         }
     }
 }
+
+// MARK: - Qarz turi
+enum DebtType: String, Codable, CaseIterable, Identifiable {
+    case lend   // Men berdim (Mendan olishdi)
+    case borrow // Men oldim (Menga berishdi)
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .lend: return "Men berdim"
+        case .borrow: return "Men oldim"
+        }
+    }
+}
+
+// MARK: - Qarz holati
+enum DebtStatus: String, Codable, CaseIterable, Identifiable {
+    case active, settled
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .active: return "Faol"
+        case .settled: return "Yopilgan"
+        }
+    }
+}

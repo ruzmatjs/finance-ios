@@ -14,7 +14,8 @@ enum PersistenceController {
         Tag.self,
         Budget.self,
         Goal.self,
-        RecurringTransaction.self
+        RecurringTransaction.self,
+        Debt.self
     ])
 
     /// iCloud container identifikatori (entitlements bilan mos boʻlishi shart).

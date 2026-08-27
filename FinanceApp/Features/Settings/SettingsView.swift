@@ -14,6 +14,7 @@ struct SettingsView: View {
             // Boshqaruv boʻlimlari
             Section("Boshqaruv") {
                 NavigationLink { AccountsView() } label: { Label("Hisoblar", systemImage: "creditcard.fill") }
+                NavigationLink { DebtsView() } label: { Label("Qarzlar (Berdilar / Oldilar)", systemImage: "hand.raised.fill") }
                 NavigationLink { CategoriesView() } label: { Label("Kategoriyalar", systemImage: "square.grid.2x2.fill") }
                 NavigationLink { BudgetsView() } label: { Label("Byudjetlar", systemImage: "chart.bar.fill") }
                 NavigationLink { GoalsView() } label: { Label("Maqsadlar", systemImage: "target") }
