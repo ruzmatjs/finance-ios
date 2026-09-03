@@ -105,7 +105,7 @@ struct TransactionsListView: View {
         let income = section.items.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
         let expense = section.items.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
 
-        return HStack(alignment: .firstTextBaseline) {
+        return HStack(alignment: .center) {
             Text(section.date.formatted(.dateTime.weekday(.wide).day().month()))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.Colors.secondaryText)
@@ -131,6 +131,7 @@ struct TransactionsListView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .textCase(nil)
     }
 
