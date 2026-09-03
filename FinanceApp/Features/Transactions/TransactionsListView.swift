@@ -55,7 +55,7 @@ struct TransactionsListView: View {
                                     }
                             }
                         } header: {
-                            Text(section.date.formatted(.dateTime.weekday(.wide).day().month()))
+                            daySectionHeader(for: section)
                         }
                     }
                 }
@@ -98,6 +98,40 @@ struct TransactionsListView: View {
         .sheet(item: $exportFile) { file in ShareSheet(items: [file.url]) }
         .overlay(alignment: .bottom) { undoBanner }
         .background(Theme.Colors.background)
+    }
+
+    // MARK: Day Section Header
+    private func daySectionHeader(for section: (date: Date, items: [Transaction])) -> some View {
+        let income = section.items.filter { $0.type == .income }.reduce(0) { $0 + $1.amount }
+        let expense = section.items.filter { $0.type == .expense }.reduce(0) { $0 + $1.amount }
+
+        return HStack(alignment: .firstTextBaseline) {
+            Text(section.date.formatted(.dateTime.weekday(.wide).day().month()))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.Colors.secondaryText)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                if income > 0 {
+                    AmountText(
+                        amount: income,
+                        currencyCode: settings.currencyCode,
+                        type: .income,
+                        font: .caption.weight(.semibold)
+                    )
+                }
+                if expense > 0 {
+                    AmountText(
+                        amount: expense,
+                        currencyCode: settings.currencyCode,
+                        type: .expense,
+                        font: .caption.weight(.semibold)
+                    )
+                }
+            }
+        }
+        .textCase(nil)
     }
 
     // MARK: Undo banner
