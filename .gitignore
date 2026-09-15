@@ -20,5 +20,10 @@ FinanceWidget/*.entitlements
 .build/
 .swiftpm/
 
-# Muhit
+# Muhit va maxfiy maʼlumotlar (Secrets & Environment)
+.env
+.env.*
+!.env.example
+*.env
 *.xcconfig.local
+*.local

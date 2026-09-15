@@ -96,7 +96,8 @@ final class AppSettings {
         self.dailyReminderHour = defaults.object(forKey: Keys.dailyHour) as? Int ?? 21
         self.monthlyReportEnabled = defaults.object(forKey: Keys.monthlyReport) as? Bool ?? true
         self.iCloudSyncEnabled = defaults.object(forKey: Keys.iCloudSync) as? Bool ?? true
-        self.telegramBotToken = defaults.string(forKey: Keys.telegramBotToken) ?? "8718918141:AAH1KK-yaaJQaTyABJAPjDwdWwJt6DIiSOM"
+        self.telegramBotToken = defaults.string(forKey: Keys.telegramBotToken) ??
+            (ProcessInfo.processInfo.environment["TELEGRAM_BOT_TOKEN"] ?? "")
         self.telegramChatId = defaults.string(forKey: Keys.telegramChatId) ?? ""
         self.telegramReportFormat = defaults.string(forKey: Keys.telegramReportFormat) ?? "pdf"
     }
