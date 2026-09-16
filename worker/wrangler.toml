@@ -10,7 +10,7 @@ crons = ["0 5 1 * *"]
 # ID'ni `wrangler kv namespace create REPORTS` buyrug'i beradi - shu yerga qo'ying.
 [[kv_namespaces]]
 binding = "REPORTS"
-id = "KV_NAMESPACE_ID_SHU_YERGA"
+id = "a5ad2f33ba844c0db629eac66fec95a8"
 
 [vars]
 MINIAPP_URL = "https://ruzmatjs.github.io/finance-ios/"

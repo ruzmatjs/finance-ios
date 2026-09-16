@@ -27,3 +27,7 @@ FinanceWidget/*.entitlements
 *.env
 *.xcconfig.local
 *.local
+
+# Worker (Cloudflare)
+worker/node_modules/
+worker/.wrangler/
