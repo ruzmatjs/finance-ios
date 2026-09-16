@@ -55,13 +55,22 @@ function monthTitle(mk) {
   return MONTHS[parseInt(m, 10)] + ' ' + y;
 }
 
-/** {income, expense, cats:[[nom, summa], ...]} -> HTML xabar */
+/** Kategoriyalar ro'yxatini raqamlangan satrlarga aylantiradi. */
+function catLines(cats, total) {
+  return cats.map(([name, sum], i) => {
+    const pct = total > 0 ? Math.round((sum / total) * 100) : 0;
+    return (i + 1) + '. ' + esc(name) + ' — ' + fmtNum(sum) + ' (' + pct + '%)';
+  });
+}
+
+/** {income, expense, cats, incCats} -> HTML xabar (to'liq daromad/xarajat taqsimoti) */
 function buildReport(mk, d, cur) {
   cur = cur || 'soʻm';
   const income = d.income || 0;
   const expense = d.expense || 0;
   const net = income - expense;
-  const cats = (d.cats || []).slice(0, 5);
+  const expCats = d.cats || [];
+  const incCats = d.incCats || [];
 
   const lines = [
     '📊 <b>' + monthTitle(mk) + ' — oylik hisobot</b>',
@@ -71,21 +80,27 @@ function buildReport(mk, d, cur) {
     (net >= 0 ? '📈' : '📉') + ' Qoldiq:   <b>' + (net >= 0 ? '+' : '−') + fmtNum(net) + ' ' + cur + '</b>',
   ];
 
-  if (income > 0) {
-    const rate = Math.round((net / income) * 100);
-    lines.push('', 'Daromadning <b>' + rate + '%</b> i qoldi.');
+  if (net >= 0 && income > 0) {
+    lines.push('', 'Daromadning <b>' + Math.round((net / income) * 100) + '%</b> i qoldi.');
+  } else if (net < 0) {
+    lines.push('', '⚠️ Xarajat daromaddan <b>' + fmtNum(-net) + ' ' + cur + '</b> koʻp.');
   }
 
-  if (cats.length) {
-    lines.push('', '<b>Eng koʻp sarflangan:</b>');
-    cats.forEach(([name, sum], i) => {
-      const pct = expense > 0 ? Math.round((sum / expense) * 100) : 0;
-      lines.push((i + 1) + '. ' + esc(name) + ' — ' + fmtNum(sum) + ' (' + pct + '%)');
-    });
+  if (incCats.length) {
+    lines.push('', '💰 <b>Daromadlar</b> (' + incCats.length + ' ta kategoriya)');
+    lines.push(...catLines(incCats, income));
+  }
+
+  if (expCats.length) {
+    lines.push('', '💸 <b>Xarajatlar</b> (' + expCats.length + ' ta kategoriya)');
+    lines.push(...catLines(expCats, expense));
   }
 
   if (d.txCount) lines.push('', '<i>Jami ' + d.txCount + ' ta tranzaksiya</i>');
-  return lines.join('\n');
+
+  let text = lines.join('\n');
+  if (text.length > 3900) text = text.slice(0, 3880) + '\n…';
+  return text;
 }
 
 async function sendMessage(token, chatId, text, miniAppUrl) {

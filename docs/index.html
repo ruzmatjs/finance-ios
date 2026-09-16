@@ -368,14 +368,14 @@ function reportApi(){return String(state.reportApi||'').trim().replace(/\/+$/,''
 function setReportApi(v){state.reportApi=String(v||'').trim(); clearTimeout(_apiTimer); _apiTimer=setTimeout(()=>{save();syncReports();},700);}
 function monthSummary(mk){
   const tx=(state.tx||[]).filter(t=>monthKey(t.date)===mk);
-  let income=0,expense=0; const byCat={};
+  let income=0,expense=0; const byExp={},byInc={};
   tx.forEach(t=>{
-    const a=parseFloat(t.amount)||0;
-    if(t.type==='income') income+=a;
-    else if(t.type==='expense'){ const c=t.cat||'Boshqa'; expense+=a; byCat[c]=(byCat[c]||0)+a; }
+    const a=parseFloat(t.amount)||0, c=t.cat||'Boshqa';
+    if(t.type==='income'){ income+=a; byInc[c]=(byInc[c]||0)+a; }
+    else if(t.type==='expense'){ expense+=a; byExp[c]=(byExp[c]||0)+a; }
   });
-  const cats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  return {income,expense,cats,txCount:tx.length};
+  const srt=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+  return {income,expense,cats:srt(byExp),incCats:srt(byInc),txCount:tx.length};
 }
 function reportPayload(){
   const d=new Date(), months={};
