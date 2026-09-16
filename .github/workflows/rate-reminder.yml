@@ -4,7 +4,7 @@
 # Kerakli sozlamalar (GitHub -> Settings -> Secrets and variables -> Actions):
 #   Secrets:    TELEGRAM_BOT_TOKEN - @BotFather bergan token
 #               TELEGRAM_CHAT_ID   - shaxsiy chat ID (botga yozib, getUpdates'dan olinadi)
-#   Variables:  MINIAPP_URL        - (ixtiyoriy) Mini App manzili
+#   MINIAPP_URL - (ixtiyoriy) Mini App manzili; Secret yoki Variable sifatida bo'lishi mumkin
 
 name: Oy oxiri baholash eslatmasi
 
@@ -47,7 +47,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          MINIAPP_URL: ${{ vars.MINIAPP_URL }}
+          MINIAPP_URL: ${{ secrets.MINIAPP_URL || vars.MINIAPP_URL }}
           LAST_DAY: ${{ steps.check.outputs.last }}
           MONTH_NUM: ${{ steps.check.outputs.month }}
         run: |

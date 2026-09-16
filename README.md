@@ -185,7 +185,7 @@ GitHub Actions cron orqali yuboriladi: `.github/workflows/rate-reminder.yml`
 |---|---|---|
 | Secret | `TELEGRAM_BOT_TOKEN` | @BotFather bergan token |
 | Secret | `TELEGRAM_CHAT_ID` | Shaxsiy chat ID |
-| Variable | `MINIAPP_URL` | (ixtiyoriy) Mini App manzili, masalan `https://ruzmatjs.github.io/finance-ios/` |
+| Secret yoki Variable | `MINIAPP_URL` | (ixtiyoriy) Mini App manzili: `https://ruzmatjs.github.io/finance-ios/` |
 
 Chat ID ni olish: botga bir marta yozing, soʻng brauzerda oching —
 `https://api.telegram.org/bot<TOKEN>/getUpdates` → `message.chat.id`.
