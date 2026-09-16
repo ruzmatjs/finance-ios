@@ -169,6 +169,35 @@ Ilova hech qanday oraliq backend'siz toʻgʻridan-toʻgʻri **Telegram Bot API**
 4. **"Kun vaqti" (Time of Day)**: masalan, *Har dushanba 09:00* ➔ Harakat: *"FinanceApp haftalik hisoboti"* ➔ *"Darhol ishga tushirish"* (Run immediately).
 5. Natijada har dushanba ertalab telefoningiz avtomatik tarzda Telegram chatingizga PDF/Excel hisobot va xulosani tashlab beradi!
 
+## Oy oxiri baholash eslatmasi (Mini App + bot)
+
+`docs/index.html` (Telegram Mini App) ichida **⭐ Baholash** tabi bor: rejadan olingan
+xaridlarga 1–5 yulduz qoʻyiladi. Oyning oxirgi kunidan **bir kun oldin** va oxirgi kuni
+ilovada banner chiqadi.
+
+Ilova faqat ochilganda ishlaydi, shuning uchun **botdan lichkaga eslatma** alohida
+GitHub Actions cron orqali yuboriladi: `.github/workflows/rate-reminder.yml`
+(har kuni 20:00 Toshkent vaqti tekshiradi, ertaga oy oxiri boʻlsa xabar yuboradi).
+
+**Sozlash (GitHub → Settings → Secrets and variables → Actions):**
+
+| Turi | Nomi | Qiymati |
+|---|---|---|
+| Secret | `TELEGRAM_BOT_TOKEN` | @BotFather bergan token |
+| Secret | `TELEGRAM_CHAT_ID` | Shaxsiy chat ID |
+| Variable | `MINIAPP_URL` | (ixtiyoriy) Mini App manzili, masalan `https://ruzmatjs.github.io/finance-ios/` |
+
+Chat ID ni olish: botga bir marta yozing, soʻng brauzerda oching —
+`https://api.telegram.org/bot<TOKEN>/getUpdates` → `message.chat.id`.
+
+Tekshirish: **Actions → "Oy oxiri baholash eslatmasi" → Run workflow** → `force` ✓
+(sanadan qatʼiy nazar darhol yuboradi).
+
+> ⚠️ Cron GitHub'da 5–20 daqiqa kechikishi mumkin. Repoda 60 kun hech qanday
+> faollik boʻlmasa, GitHub rejalashtirilgan workflow'larni avtomatik oʻchiradi.
+> Xabar matni umumiy — nechta xarid baholanmaganini bot bilmaydi, chunki maʼlumot
+> Telegram CloudStorage'da (faqat Mini App ichida) saqlanadi.
+
 ## Keyingi bosqich (TODO)
 - Custom passcode (qurilma paroli oʻrniga ilova ichidagi PIN).
 - CloudKit share (oila/hamkor bilan umumiy byudjet).

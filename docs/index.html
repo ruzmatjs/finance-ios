@@ -45,8 +45,12 @@
   .tx{padding:10px 0;border-bottom:1px solid var(--sep)} .tx:last-child{border-bottom:none}
   .tx .name{font-weight:600} .tx .meta{font-size:12px;color:var(--text2)} .tx .amt{font-weight:700;font-variant-numeric:tabular-nums}
   .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--sep);display:flex;justify-content:space-around;padding:8px 0 26px;z-index:20}
-  .tabbar button{background:none;border:none;color:var(--text2);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;cursor:pointer}
+  .tabbar button{position:relative;background:none;border:none;color:var(--text2);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;cursor:pointer}
   .tabbar button .ti{font-size:20px} .tabbar button.active{color:var(--accent)}
+  .btn-fix{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;width:calc(100% - 32px);max-width:568px;margin-top:0;z-index:22;box-shadow:0 8px 24px rgba(10,132,255,.4)}
+  .tdot{position:absolute;top:0;left:calc(50% + 9px);width:9px;height:9px;border-radius:50%;background:var(--expense);border:1.5px solid var(--card)}
+  .stars span{font-size:26px;line-height:1;cursor:pointer;user-select:none;transition:transform .1s}
+  .stars span:active{transform:scale(1.25)}
   .fab{position:fixed;bottom:78px;left:50%;transform:translateX(-50%);width:58px;height:58px;border-radius:50%;background:linear-gradient(180deg,#5e5ce6,#0a84ff);color:#fff;border:none;font-size:30px;box-shadow:0 8px 20px rgba(10,132,255,.45);z-index:25;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:none;align-items:flex-end}
   .modal.show{display:flex}
@@ -138,6 +142,25 @@ const DEF_CATS=[
  {n:'Jarimalar',e:'👮',c:'#ff453a',t:'expense'},{n:'Internet',e:'🌐',c:'#0a84ff',t:'expense'},
  {n:'Aloqa',e:'📶',c:'#30b0c7',t:'expense'},
  {n:'Boshqa',e:'📦',c:'#8e8e93',t:'expense'},
+];
+// Xaridlar rejasi uchun alohida kategoriyalar (tx -> tranzaksiyaga yoziladigan xarajat kategoriyasi)
+const WISH_CATS=[
+ {n:'Texnika',e:'📱',c:'#0a84ff',tx:'Xarid'},
+ {n:'Avto',e:'🚗',c:'#5856d6',tx:'Transport'},
+ {n:'Uy-roʻzgʻor',e:'🏠',c:'#af52de',tx:'Uydagilar'},
+ {n:'Taʼmirlash',e:'🔨',c:'#a2845e',tx:'Uydagilar'},
+ {n:'Kiyim-kechak',e:'👕',c:'#ff2d55',tx:'Xarid'},
+ {n:'Parvarish',e:'💄',c:'#ff6482',tx:'Xarid'},
+ {n:'Asbob-uskuna',e:'🛠️',c:'#ffcc00',tx:'Xarid'},
+ {n:'Obuna va litsenziya',e:'💻',c:'#64d2ff',tx:'Internet'},
+ {n:'Kredit toʻlovi',e:'💳',c:'#ff453a',tx:'Kredit'},
+ {n:'Qarz uzish',e:'🤝',c:'#34c759',tx:'Qarz'},
+ {n:'Taʼlim',e:'🎓',c:'#32ade6',tx:'Boshqa'},
+ {n:'Salomatlik',e:'❤️',c:'#ff3b30',tx:'Salomatlik'},
+ {n:'Sovgʻa',e:'🎁',c:'#30d158',tx:'Xarid'},
+ {n:'Sayohat',e:'✈️',c:'#00c7be',tx:'Boshqa'},
+ {n:'Hobbi',e:'🎮',c:'#af52de',tx:'Koʼngilochar'},
+ {n:'Boshqa',e:'📦',c:'#8e8e93',tx:'Boshqa'},
 ];
 const PALETTE=['#ff3b30','#ff9500','#ffcc00','#34c759','#00c7be','#0a84ff','#5856d6','#af52de','#ff2d55','#a2845e','#8e8e93','#64d2ff'];
 const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','👨‍👩‍👧‍👦','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵','👮','📜'];
@@ -337,6 +360,119 @@ applyTheme();
 
 // ============ Kategoriya yordamchilari ============
 function cats(t){return state.cats.filter(c=>!t||c.t===t)}
+// ============ OY OXIRI BAHOLASH ============
+const RATE_TXT={1:'Afsuslandim',2:'Unchalik emas',3:'Oʻrtacha',4:'Yaxshi',5:'Juda arzidi'};
+function monthKey(d){const x=new Date(d);return isNaN(x)?'':x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')}
+function monthLabel(mk){const [y,m]=mk.split('-');return new Date(+y,+m-1,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}
+function monthEndPhase(){
+  const d=new Date(), last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  if(d.getDate()===last) return 'last';
+  if(d.getDate()===last-1) return 'eve';
+  return '';
+}
+function boughtItems(){return (state.wishlist||[]).filter(w=>w.status==='bought')}
+function pendingRatings(){return boughtItems().filter(w=>!w.rating)}
+function rateReminder(){
+  const ph=monthEndPhase(); if(!ph) return null;
+  const n=pendingRatings().length; if(!n) return null;
+  const key=monthKey(new Date())+'-'+ph;
+  if(state.rateDismiss===key) return null;
+  return {phase:ph,count:n,key:key};
+}
+function dismissRateReminder(){const r=rateReminder(); if(!r) return; state.rateDismiss=r.key; save(); haptic(); render();}
+function openRateTab(){wishFilterTab='rate'; go('wishlist');}
+function rateBanner(){
+  const r=rateReminder(); if(!r) return '';
+  const title=r.phase==='last'?'Bugun — oyning oxirgi kuni':'Ertaga oyning oxirgi kuni';
+  return `<div class="card" style="border:1px solid var(--accent);background:linear-gradient(135deg,rgba(94,92,230,.20),rgba(10,132,255,.10))">
+    <div class="between" style="align-items:flex-start">
+      <div style="flex:1;padding-right:8px">
+        <div style="font-weight:800;font-size:15px">⭐ ${title}</div>
+        <div class="muted" style="font-size:12.5px;margin-top:4px;line-height:1.45">Rejadan olingan <b style="color:var(--text)">${r.count} ta</b> xaridni baholang — har biri qanchalik arziganini 1–5 yulduz bilan belgilang.</div>
+      </div>
+      <span onclick="dismissRateReminder()" style="font-size:19px;cursor:pointer;padding:0 2px;color:var(--text2)">✕</span>
+    </div>
+    <button class="btn" style="margin-top:10px;padding:11px;font-size:14px" onclick="openRateTab()">Baholashni boshlash</button>
+  </div>`;
+}
+function rateWish(id,v){
+  const w=(state.wishlist||[]).find(x=>x.id===id); if(!w) return;
+  if(w.status!=='bought'){ notify('warning'); return; }
+  w.rating = (w.rating===v) ? 0 : v;
+  w.ratedAt = w.rating ? new Date().toISOString() : null;
+  save(); notify(w.rating?'success':'warning'); render();
+}
+function starsRow(w){
+  const r=w.rating||0;
+  const can=w.status==='bought';
+  return `<div class="stars" style="display:flex;align-items:center;gap:5px;margin-top:8px">
+    ${[1,2,3,4,5].map(i=>`<span ${can?`onclick="rateWish('${w.id}',${i})"`:''} style="${i<=r?'':'filter:grayscale(1);opacity:.3;'}${can?'':'cursor:default'}">⭐</span>`).join('')}
+    <span class="muted" style="font-size:12px;margin-left:6px">${can?(r?RATE_TXT[r]:'Baholanmagan'):'Avval “Sotib oldim” deb belgilang'}</span>
+  </div>`;
+}
+function rateCard(w){
+  const cat=wishCatBy(w.cat);
+  return `<div class="card" style="padding:14px">
+    <div class="between" style="align-items:flex-start">
+      <div style="flex:1;padding-right:8px">
+        <div style="font-weight:700;font-size:15px">${esc(w.title)}</div>
+        <span class="chip" style="font-size:11px;padding:2px 8px;background:${cat.c}22;color:${cat.c};border:none;margin-top:5px;display:inline-block">${cat.e} ${esc(w.cat||'Boshqa')}</span>
+      </div>
+      <div class="mono" style="font-weight:800;font-size:15px;color:var(--expense)">${fmt(w.price)}</div>
+    </div>
+    ${starsRow(w)}
+  </div>`;
+}
+function viewRate(){
+  const mk=monthKey(new Date());
+  const all=boughtItems();
+  const thisMonth=all.filter(w=>monthKey(w.boughtAt||'')===mk);
+  const older=all.filter(w=>monthKey(w.boughtAt||'')!==mk);
+  const olderPending=older.filter(w=>!w.rating);
+  const olderRated=older.filter(w=>w.rating);
+  if(!all.length){
+    return emptyBig('⭐','Baholash uchun xarid yoʻq','Rejadan biror narsani “Sotib oldim” deb belgilang — oy oxirida shu yerda baholaysiz');
+  }
+  const rated=all.filter(w=>w.rating);
+  const avg=rated.length?(rated.reduce((s,w)=>s+w.rating,0)/rated.length):0;
+  const regret=rated.filter(w=>w.rating<=2);
+  const regretTot=regret.reduce((s,w)=>s+(w.price||0),0);
+  let html=`<div class="card">
+    <div class="between">
+      <div>
+        <div class="muted" style="font-size:12px">Oʻrtacha baho</div>
+        <div style="font-size:22px;font-weight:800;margin-top:2px">${avg?avg.toFixed(1):'—'} <span style="font-size:15px">⭐</span></div>
+      </div>
+      <div style="text-align:right">
+        <div class="muted" style="font-size:12px">Baholangan</div>
+        <div style="font-size:16px;font-weight:700;margin-top:2px">${rated.length} / ${all.length}</div>
+      </div>
+    </div>
+    ${regret.length?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--sep);font-size:12.5px;color:var(--expense)">⚠️ ${regret.length} ta xarid arzimagan (≤⭐⭐) — jami <b class="mono">${fmt(regretTot)}</b></div>`:''}
+  </div>`;
+  if(thisMonth.length){
+    html+=`<div class="muted" style="font-size:12px;font-weight:700;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">${monthLabel(mk)} — ${thisMonth.length} ta</div>`;
+    html+=thisMonth.map(rateCard).join('');
+  }
+  if(olderPending.length){
+    html+=`<div class="muted" style="font-size:12px;font-weight:700;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Baholanmagan avvalgi xaridlar — ${olderPending.length} ta</div>`;
+    html+=olderPending.map(rateCard).join('');
+  }
+  if(olderRated.length){
+    html+=`<div class="muted" style="font-size:12px;font-weight:700;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.4px">Baholangan avvalgi xaridlar — ${olderRated.length} ta</div>`;
+    html+=olderRated.map(rateCard).join('');
+  }
+  return html;
+}
+function wishCatBy(n){return WISH_CATS.find(c=>c.n===n)||catBy(n,'expense')}
+function wishTxCat(n){
+  const has=x=>state.cats.some(c=>c.n===x&&c.t==='expense');
+  const wc=WISH_CATS.find(c=>c.n===n);
+  const want=wc?wc.tx:n;
+  if(want&&has(want))return want;
+  if(has('Boshqa'))return 'Boshqa';
+  return state.cats.find(c=>c.t==='expense')?.n||'Boshqa';
+}
 function catBy(n,t){return state.cats.find(c=>c.n===n&&(!t||c.t===t))||state.cats.find(c=>c.n===n)||{e:'💸',c:'#8e8e93'}}
 function accBy(id){return state.accounts.find(a=>a.id===id)||{name:'—',e:'💼',c:'#8e8e93'}}
 
@@ -507,6 +643,14 @@ function render(keepScroll=true){
     fab.style.display = (page === 'home') ? 'flex' : 'none';
   }
 
+  const wishBtn = document.querySelector('.tabbar button[data-tab="wishlist"]');
+  if(wishBtn){
+    let dot = wishBtn.querySelector('.tdot');
+    if(rateReminder()){
+      if(!dot){ dot = document.createElement('i'); dot.className = 'tdot'; wishBtn.appendChild(dot); }
+    } else if(dot){ dot.remove(); }
+  }
+
   if(keepScroll){
     window.scrollTo(0,scrollY);
     const newCatsEl=document.getElementById('reportCats');
@@ -558,6 +702,7 @@ function viewHome(){
     <div class="amt mono">${state.hideBalance ? '******' : fmt(total())}</div>
     <div style="margin-top:6px">${todayBadge}</div>
   </div>
+  ${rateBanner()}
   ${weeklyChart()}
   ${debtsMini}
   ${up.length?`<div class="card"><div class="between"><h2>Yaqin toʼlovlar</h2></div>${up.map(r=>`<div class="listrow"><div class="cic" style="background:${catBy(r.cat).c}22">${catBy(r.cat).e}</div><div style="flex:1"><div style="font-weight:600">${esc(r.title)}</div><div class="meta muted" style="font-size:12px">${fmtD(r.nextDue)}</div></div><b class="mono">${fmt(r.amount)}</b></div>`).join('')}</div>`:''}`;
@@ -1056,9 +1201,10 @@ function viewWishlist(){
   const boughtTot = bought.reduce((s, w) => s + (w.price || 0), 0);
 
   const currentList = wishFilterTab === 'planned' ? planned : bought;
+  const unrated = bought.filter(w => !w.rating).length;
 
   const headerHtml = (page !== tab) ? head('Xaridlar rejasi', tab || 'settings') : '<h1>Xaridlar rejasi</h1>';
-  let html = headerHtml +
+  let html = headerHtml + rateBanner() +
     `<div class="card" style="margin-bottom:10px">
       <div class="between">
         <div>
@@ -1076,16 +1222,23 @@ function viewWishlist(){
       </div>
     </div>
     <div class="seg" style="margin:10px 0 14px">
-      <button class="${wishFilterTab==='planned'?'on':''}" onclick="wishFilterTab='planned';render()">🛍️ Rejada (${planned.length})</button>
-      <button class="${wishFilterTab==='bought'?'on':''}" onclick="wishFilterTab='bought';render()">✓ Olinganlar (${bought.length})</button>
+      <button style="font-size:12.5px;padding:9px 4px" class="${wishFilterTab==='planned'?'on':''}" onclick="wishFilterTab='planned';render()">🛍️ Rejada (${planned.length})</button>
+      <button style="font-size:12.5px;padding:9px 4px" class="${wishFilterTab==='bought'?'on':''}" onclick="wishFilterTab='bought';render()">✓ Olingan (${bought.length})</button>
+      <button style="font-size:12.5px;padding:9px 4px" class="${wishFilterTab==='rate'?'on':''}" onclick="wishFilterTab='rate';render()">⭐ Baholash${unrated?` <b style="color:var(--expense)">(${unrated})</b>`:''}</button>
     </div>`;
+
+  if(wishFilterTab==='rate'){
+    html += viewRate();
+    html += `<div style="height:20px"></div>`;
+    return html;
+  }
 
   if(!currentList.length){
     html += emptyBig('🛍️', wishFilterTab==='planned'?'Rejalar yoʻq':'Olinganlar yoʻq', wishFilterTab==='planned'?'Olishni rejalashtirgan buyumlaringizni qoʻshing':'Hali sotib olingan buyumlar mavjud emas');
   } else {
     html += currentList.map(w => {
       const isBought = w.status === 'bought';
-      const cat = catBy(w.cat, 'expense');
+      const cat = wishCatBy(w.cat);
       const prColor = w.priority === 'high' ? 'var(--expense)' : (w.priority === 'low' ? 'var(--text2)' : 'var(--warn)');
       const prText = w.priority === 'high' ? '⭐⭐⭐ Yuqori' : (w.priority === 'low' ? '⭐ Oddiy' : '⭐⭐ Oʻrta');
 
@@ -1112,6 +1265,7 @@ function viewWishlist(){
           ` : `
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-size:12px;color:var(--income);font-weight:600">✓ Olingan</span>
+              <span onclick="openRateTab()" style="font-size:12px;cursor:pointer;color:${w.rating?'var(--warn)':'var(--text2)'}">${w.rating?'⭐'.repeat(w.rating):'⭐ Baholash'}</span>
               <button class="chip" style="font-size:11px;padding:3px 8px" onclick="markWishPlanned('${w.id}')">Rejaga qaytarish</button>
             </div>
           `}
@@ -1121,7 +1275,7 @@ function viewWishlist(){
     }).join('');
   }
 
-  html += `<button class="btn" onclick="openWishlist()">+ Yangi reja qoʻshish</button>`;
+  html += `<div style="height:64px"></div><button class="btn btn-fix" onclick="openWishlist()">+ Yangi reja qoʻshish</button>`;
   return html;
 }
 // ============ BYUDJETLAR ============
@@ -1771,7 +1925,7 @@ function openWishlist(id){
     title: '',
     price: '',
     image: '',
-    cat: 'Xarid',
+    cat: 'Texnika',
     priority: 'medium',
     note: '',
     status: 'planned'
@@ -1826,7 +1980,8 @@ function onWishImgError(){
 }
 
 function wishlistSheet(){
-  const expCats = cats('expense');
+  const wCats = WISH_CATS.slice();
+  if(form.cat && !wCats.some(c=>c.n===form.cat)) wCats.unshift({n:form.cat,e:wishCatBy(form.cat).e});
   const curPr = form.priority || 'medium';
   return `<div class="between"><h2>${form.edit ? 'Rejani tahrirlash' : 'Yangi xarid rejasi'}</h2><span onclick="closeSheet()" style="font-size:22px;cursor:pointer">✕</span></div>
   <label class="fld">Nomi (Nima olmoqchisiz?)</label>
@@ -1841,7 +1996,7 @@ function wishlistSheet(){
 
   <label class="fld">Kategoriya</label>
   <select id="wcat" onchange="form.cat=this.value">
-    ${expCats.map(c => `<option value="${c.n}" ${form.cat===c.n?'selected':''}>${c.e} ${c.n}</option>`).join('')}
+    ${wCats.map(c => `<option value="${c.n}" ${form.cat===c.n?'selected':''}>${c.e} ${c.n}</option>`).join('')}
   </select>
 
   <label class="fld">Muhimlik darajasi</label>
@@ -2007,13 +2162,14 @@ function markWishBought(id){
 
   const addTx = confirm(`"${w.title}" sotib olindi deb belgilansinmi?\n\n(OK — tranzaksiyalarga xarajat sifatida ham qoʻshiladi, Bekor qilish — faqat roʻyxatda olingan deb belgilanadi)`);
   w.status = 'bought';
+  w.boughtAt = new Date().toISOString();
 
   if(addTx){
     state.tx.push({
       id: genId(),
       type: 'expense',
       amount: w.price,
-      cat: w.cat || 'Xarid',
+      cat: wishTxCat(w.cat),
       accountId: state.accounts[0]?.id || 'cash',
       merchant: w.title,
       note: `Xaridlar rejasidan: ${w.title}`,
@@ -2031,6 +2187,9 @@ function markWishPlanned(id){
   const w = (state.wishlist || []).find(x => x.id === id);
   if(!w) return;
   w.status = 'planned';
+  w.boughtAt = null;
+  w.rating = 0;
+  w.ratedAt = null;
   save();
   notify('light');
   render();

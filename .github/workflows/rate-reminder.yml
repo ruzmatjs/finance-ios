@@ -1,0 +1,93 @@
+# Har kuni tekshiradi: agar ertaga oyning oxirgi kuni bo'lsa,
+# Telegram bot orqali shaxsiy chatga (lichkaga) eslatma yuboradi.
+#
+# Kerakli sozlamalar (GitHub -> Settings -> Secrets and variables -> Actions):
+#   Secrets:    TELEGRAM_BOT_TOKEN - @BotFather bergan token
+#               TELEGRAM_CHAT_ID   - shaxsiy chat ID (botga yozib, getUpdates'dan olinadi)
+#   Variables:  MINIAPP_URL        - (ixtiyoriy) Mini App manzili
+
+name: Oy oxiri baholash eslatmasi
+
+on:
+  schedule:
+    - cron: '0 15 * * *'   # har kuni 20:00 (Toshkent vaqti, UTC+5)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Sanani tekshirmasdan darhol yuborish (test uchun)"
+        type: boolean
+        default: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sanani tekshirish
+        id: check
+        env:
+          TZ: Asia/Tashkent
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          today=$(date +%-d)
+          last=$(date -d "$(date +%Y-%m-01) +1 month -1 day" +%-d)
+          echo "Bugun: $today | Oyning oxirgi kuni: $last"
+          if [ "${FORCE:-false}" = "true" ] || [ "$today" -eq "$((last - 1))" ]; then
+            echo "send=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "send=false" >> "$GITHUB_OUTPUT"
+            echo "Bugun eslatma kuni emas - o'tkazib yuborildi."
+          fi
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+          echo "month=$(date +%-m)" >> "$GITHUB_OUTPUT"
+
+      - name: Telegramga eslatma yuborish
+        if: steps.check.outputs.send == 'true'
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MINIAPP_URL: ${{ vars.MINIAPP_URL }}
+          LAST_DAY: ${{ steps.check.outputs.last }}
+          MONTH_NUM: ${{ steps.check.outputs.month }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ] || [ -z "${CHAT_ID:-}" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN yoki TELEGRAM_CHAT_ID secret sozlanmagan."
+            exit 1
+          fi
+          URL="${MINIAPP_URL:-https://ruzmatjs.github.io/finance-ios/}"
+
+          months=("" "yanvar" "fevral" "mart" "aprel" "may" "iyun" "iyul" "avgust" "sentabr" "oktabr" "noyabr" "dekabr")
+          MONTH_NAME="${months[$MONTH_NUM]}"
+
+          TEXT=$(printf '%s\n' \
+            "⭐ <b>Oy tugashiga 1 kun qoldi</b>" \
+            "" \
+            "Ertaga — <b>${LAST_DAY}-${MONTH_NAME}</b>, oyning oxirgi kuni." \
+            "Shu oyda rejadan olgan xaridlaringizni baholang: har biri qanchalik arziganini <b>1–5 yulduz</b> bilan belgilang." \
+            "" \
+            "Ilovada: 🛍️ Rejalar → ⭐ Baholash")
+
+          send() {
+            curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+              -H 'Content-Type: application/json' --data "$1"
+          }
+
+          PAYLOAD=$(jq -nc --arg chat "$CHAT_ID" --arg text "$TEXT" --arg url "$URL" \
+            '{chat_id:$chat, text:$text, parse_mode:"HTML",
+              reply_markup:{inline_keyboard:[[{text:"⭐ Baholashni ochish", web_app:{url:$url}}]]}}')
+
+          RES=$(send "$PAYLOAD")
+          if [ "$(echo "$RES" | jq -r '.ok')" != "true" ]; then
+            echo "Tugmali xabar yuborilmadi: $(echo "$RES" | jq -r '.description')"
+            echo "Oddiy matn sifatida qayta urinilmoqda..."
+            PLAIN=$(jq -nc --arg chat "$CHAT_ID" --arg text "$TEXT" \
+              '{chat_id:$chat, text:$text, parse_mode:"HTML"}')
+            RES=$(send "$PLAIN")
+            if [ "$(echo "$RES" | jq -r '.ok')" != "true" ]; then
+              echo "::error::Telegram xatosi: $(echo "$RES" | jq -r '.description')"
+              exit 1
+            fi
+          fi
+          echo "Eslatma yuborildi ✅"
