@@ -379,7 +379,7 @@ function monthSummary(mk){
 }
 function reportPayload(){
   const d=new Date(), months={};
-  for(let i=0;i<3;i++){ const x=new Date(d.getFullYear(),d.getMonth()-i,1); months[monthKey(x)]=monthSummary(x); }
+  for(let i=0;i<3;i++){ const mk=monthKey(new Date(d.getFullYear(),d.getMonth()-i,1)); months[mk]=monthSummary(mk); }
   return {initData:(TG&&TG.initData)||'', months, cur:SYM[state.currency]||state.currency};
 }
 async function reportPost(path,extra){
