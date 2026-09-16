@@ -247,6 +247,8 @@ function ensure(){
   state.debts=state.debts||[];
   state.wishlist=state.wishlist||[];
   if(typeof state.hideBalance!=='boolean') state.hideBalance=false;
+  // Hisobot Worker manzili - birinchi ochilishda avtomatik qo'yiladi (Sozlamalardan o'zgartiriladi)
+  if(state.reportApi===undefined) state.reportApi='https://finance-report.ruzmatjs.workers.dev';
   state.tx.forEach(t=>{ if(!t.accountId) t.accountId=state.accounts[0].id; });
 
   // Clean bogus repayment records that were mistakenly created as debts
