@@ -198,6 +198,24 @@ Tekshirish: **Actions → "Oy oxiri baholash eslatmasi" → Run workflow** → `
 > Xabar matni umumiy — nechta xarid baholanmaganini bot bilmaydi, chunki maʼlumot
 > Telegram CloudStorage'da (faqat Mini App ichida) saqlanadi.
 
+## Telegram oylik hisobot (Mini App + Cloudflare Worker)
+
+Har oyning 1-sanasida bot lichkaga **oʻtgan oy hisobotini** yuboradi: daromad, xarajat,
+qoldiq va eng koʻp sarflangan 5 kategoriya.
+
+Maʼlumot Telegram CloudStorage'da (faqat Mini App ichida) saqlangani uchun bot uni
+oʻzi oʻqiy olmaydi, bot tokenini esa ochiq `docs/index.html` ichiga yozib boʻlmaydi.
+Shuning uchun oradagi boʻgʻin — kichik **Cloudflare Worker** (`worker/`):
+
+- Mini App har saqlashda oxirgi 3 oy jamlanmasini Worker'ga yuboradi (`POST /sync`)
+- Worker uni KV'da saqlaydi va cron (`0 5 1 * *`) boʻyicha xabar tashlaydi
+- Har soʻrov Telegram `initData` imzosi bilan tekshiriladi; chat ID imzolangan
+  maʼlumotdan olinadi — birovning nomidan yuborib boʻlmaydi
+- Bot tokeni faqat Cloudflare secret sifatida turadi
+
+Oʻrnatish qoʻllanmasi: [`worker/README.md`](worker/README.md).
+Ulash: ilovada **Sozlama → 📊 Telegram oylik hisobot** → Worker manzilini kiriting.
+
 ## Keyingi bosqich (TODO)
 - Custom passcode (qurilma paroli oʻrniga ilova ichidagi PIN).
 - CloudKit share (oila/hamkor bilan umumiy byudjet).

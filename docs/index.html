@@ -170,7 +170,7 @@ let state=load()||{};
 let _ready=false,_cloudTimer=null;
 function load(){try{return JSON.parse(localStorage.getItem('finance.v1'))}catch(e){return null}}
 function localWrite(){try{localStorage.setItem('finance.v1',JSON.stringify(state))}catch(e){console.error(e)}}
-function save(){state.updatedAt=Date.now();localWrite();scheduleCloud();}
+function save(){state.updatedAt=Date.now();localWrite();scheduleCloud();syncReports();}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function ensure(){
   state.tx=state.tx||[];
@@ -360,6 +360,50 @@ applyTheme();
 
 // ============ Kategoriya yordamchilari ============
 function cats(t){return state.cats.filter(c=>!t||c.t===t)}
+// ============ TELEGRAM OYLIK HISOBOT (Cloudflare Worker) ============
+let _reportTimer=null,_apiTimer=null;
+function reportApi(){return String(state.reportApi||'').trim().replace(/\/+$/,'')}
+function setReportApi(v){state.reportApi=String(v||'').trim(); clearTimeout(_apiTimer); _apiTimer=setTimeout(()=>{save();syncReports();},700);}
+function monthSummary(mk){
+  const tx=(state.tx||[]).filter(t=>monthKey(t.date)===mk);
+  let income=0,expense=0; const byCat={};
+  tx.forEach(t=>{
+    const a=parseFloat(t.amount)||0;
+    if(t.type==='income') income+=a;
+    else if(t.type==='expense'){ const c=t.cat||'Boshqa'; expense+=a; byCat[c]=(byCat[c]||0)+a; }
+  });
+  const cats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  return {income,expense,cats,txCount:tx.length};
+}
+function reportPayload(){
+  const d=new Date(), months={};
+  for(let i=0;i<3;i++){ const x=new Date(d.getFullYear(),d.getMonth()-i,1); months[monthKey(x)]=monthSummary(x); }
+  return {initData:(TG&&TG.initData)||'', months, cur:SYM[state.currency]||state.currency};
+}
+async function reportPost(path,extra){
+  const api=reportApi();
+  if(!api) return {ok:false,error:'Worker manzili kiritilmagan'};
+  if(!(TG&&TG.initData)) return {ok:false,error:'Faqat Telegram ichida ishlaydi'};
+  try{
+    const r=await fetch(api+path,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(Object.assign(reportPayload(),extra||{}))});
+    return await r.json();
+  }catch(e){ return {ok:false,error:String(e.message||e)}; }
+}
+function syncReports(){
+  if(!reportApi()||!(TG&&TG.initData))return;
+  clearTimeout(_reportTimer);
+  _reportTimer=setTimeout(()=>{reportPost('/sync');},1500);
+}
+async function sendReportNow(mk){
+  const btn=document.getElementById('repSendBtn'), txt=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Yuborilmoqda...';}
+  const res=await reportPost('/report',{month:mk||monthKey(new Date())});
+  if(btn){btn.disabled=false;btn.textContent=txt;}
+  if(res&&res.ok){ notify('success'); alert('Hisobot Telegramga yuborildi ✅'); }
+  else{ notify('error'); alert('Yuborilmadi: '+((res&&res.error)||'nomaʼlum xato')); }
+}
+
 // ============ OY OXIRI BAHOLASH ============
 const RATE_TXT={1:'Afsuslandim',2:'Unchalik emas',3:'Oʻrtacha',4:'Yaxshi',5:'Juda arzidi'};
 function monthKey(d){const x=new Date(d);return isNaN(x)?'':x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')}
@@ -1406,6 +1450,13 @@ function viewSettings(){
   <div class="card"><div class="between"><span>Jami tranzaksiya</span><b>${state.tx.length}</b></div>
     <div class="between" style="margin-top:10px"><span>${cloudOn()?'☁️ Telegram sync':'📱 Faqat shu qurilma'}</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Yoniq':'Oflayn'}</b></div></div>
   <div class="card">
+    <h2>📊 Telegram oylik hisobot</h2>
+    <div class="hint" style="margin:6px 0 4px">Cloudflare Worker manzili</div>
+    <input id="repApi" placeholder="https://finance-report.xxx.workers.dev" value="${esc(state.reportApi||'')}" oninput="setReportApi(this.value)" style="font-size:13px">
+    <button class="btn ghost" id="repSendBtn" style="margin-top:10px" onclick="sendReportNow()">📤 Shu oy hisobotini yuborish</button>
+    <div class="hint" style="margin-top:8px">Har oyning 1-sanasi ertalab oʻtgan oy hisoboti — daromad, xarajat, qoldiq va top kategoriyalar — avtomatik lichkaga tushadi.</div>
+  </div>
+  <div class="card">
     <button class="btn ghost" onclick="forceAppReload()">🔄 Ilovani yangilash (Keshni tozalash)</button>
     <button class="btn ghost" style="margin-top:10px" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
@@ -2433,6 +2484,7 @@ function esc(s){return(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':
 // ---- Ishga tushirish: avval lokal, keyin bulut bilan sync ----
 function boot(){
   render(); // lokal maʼlumot bilan darhol koʼrsatamiz
+  setTimeout(syncReports,2500);
   if(!cloudOn()){ _ready=true; runRecurring(); localWrite(); return; }
   let done=false;
   cloudLoad(cloud=>{ if(done)return; done=true; _ready=true;
