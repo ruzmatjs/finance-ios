@@ -149,24 +149,31 @@ export default {
     const user = await verifyInitData(body.initData, env.TELEGRAM_BOT_TOKEN);
     if (!user || !user.id) return json({ ok: false, error: 'initData tasdiqlanmadi' }, 401);
 
-    if (url.pathname !== '/sync' && url.pathname !== '/report') {
+    if (url.pathname !== '/sync' && url.pathname !== '/report' && url.pathname !== '/pull') {
       return json({ ok: false, error: 'Notoʻgʻri manzil' }, 404);
     }
 
     const key = 'u:' + user.id;
     const prev = (await env.REPORTS.get(key, 'json')) || { months: {} };
+
+    if (url.pathname === '/pull') {
+      return json({ ok: true, state: prev.state || null, months: prev.months || null });
+    }
+
     const cur = body.cur || prev.cur || 'soʻm';
     const months = Object.assign({}, prev.months || {}, body.months || {});
+    const stateData = body.state || prev.state || null;
 
     await env.REPORTS.put(key, JSON.stringify({
       chatId: user.id,
       name: user.first_name || '',
       cur,
       months,
+      state: stateData,
       updatedAt: new Date().toISOString(),
     }));
 
-    if (url.pathname === '/sync') return json({ ok: true, saved: Object.keys(months).length });
+    if (url.pathname === '/sync') return json({ ok: true, saved: Object.keys(months).length, hasState: !!stateData });
 
     const mk = body.month || Object.keys(months).sort().pop();
     if (!mk || !months[mk]) return json({ ok: false, error: 'Bu oy uchun maʼlumot yoʻq' }, 400);

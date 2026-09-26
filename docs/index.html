@@ -165,12 +165,75 @@ const WISH_CATS=[
 const PALETTE=['#ff3b30','#ff9500','#ffcc00','#34c759','#00c7be','#0a84ff','#5856d6','#af52de','#ff2d55','#a2845e','#8e8e93','#64d2ff'];
 const EMOJIS=['💰','🎁','💻','📈','🍔','☕','🥤','💧','👨‍👩‍👧‍👦','🤝','💳','🏛️','🍽️','🚌','🚕','⛽','🛍️','👕','📱','🎮','❤️','💊','🏋️','✈️','💡','🌐','📶','🏠','🎯','📦','🐶','🎓','💵','👮','📜'];
 
-// ============ Holat ============
+// ============ Holat va Saqlash ============
 let state=load()||{};
-let _ready=false,_cloudTimer=null;
+let _ready=false;
+
 function load(){try{return JSON.parse(localStorage.getItem('finance.v1'))}catch(e){return null}}
 function localWrite(){try{localStorage.setItem('finance.v1',JSON.stringify(state))}catch(e){console.error(e)}}
-function save(){state.updatedAt=Date.now();localWrite();scheduleCloud();syncReports();}
+
+// ============ IndexedDB (iOS WebKit'da tozalanishdan himoyalangan xotira) ============
+const IDB_NAME='FinanceDB', IDB_STORE='app_state', IDB_KEY='state';
+function idbOpen(){
+  return new Promise(resolve=>{
+    if(!window.indexedDB) return resolve(null);
+    try{
+      const req=indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains(IDB_STORE)){
+          db.createObjectStore(IDB_STORE);
+        }
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>resolve(null);
+    }catch(e){ resolve(null); }
+  });
+}
+async function idbGet(){
+  const db=await idbOpen();
+  if(!db) return null;
+  return new Promise(resolve=>{
+    try{
+      const tx=db.transaction(IDB_STORE, 'readonly');
+      const store=tx.objectStore(IDB_STORE);
+      const req=store.get(IDB_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>resolve(null);
+    }catch(e){ resolve(null); }
+  });
+}
+async function idbSet(val){
+  const db=await idbOpen();
+  if(!db) return false;
+  return new Promise(resolve=>{
+    try{
+      const tx=db.transaction(IDB_STORE, 'readwrite');
+      const store=tx.objectStore(IDB_STORE);
+      const req=store.put(val, IDB_KEY);
+      req.onsuccess=()=>resolve(true);
+      req.onerror=()=>resolve(false);
+    }catch(e){ resolve(false); }
+  });
+}
+
+function save(){
+  state.updatedAt=Date.now();
+  localWrite();
+  idbSet(state);
+  cloudSave();
+  syncReports();
+}
+
+function flushSave(){
+  localWrite();
+  idbSet(state);
+  if(cloudOn()) cloudSave();
+}
+window.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushSave(); });
+window.addEventListener('pagehide', flushSave);
+window.addEventListener('beforeunload', flushSave);
+
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function ensure(){
   state.tx=state.tx||[];
@@ -334,28 +397,214 @@ function syncHistoricalDebts(){
 
 // ---- Telegram CloudStorage sync (barcha Telegram qurilmalarida) ----
 function cloudOn(){return !!(TG&&TG.CloudStorage&&TG.isVersionAtLeast&&TG.isVersionAtLeast('6.9'))}
-function chunkBytes(str,max){const enc=new TextEncoder();const out=[];let cur='',b=0;
-  for(const ch of str){const n=enc.encode(ch).length;if(b+n>max){out.push(cur);cur=ch;b=n;}else{cur+=ch;b+=n;}}
-  if(cur)out.push(cur);return out;}
-function cloudSave(){ if(!cloudOn())return;
-  try {
-    const ch=chunkBytes(JSON.stringify(state),3500);
-    const obj={'fin_n':String(ch.length)};
-    ch.forEach((c,i)=>{ obj['fin_'+i]=c; });
-    if(typeof TG.CloudStorage.setItems === 'function'){
-      TG.CloudStorage.setItems(obj,()=>{});
-    } else {
-      TG.CloudStorage.setItem('fin_n',String(ch.length),()=>{});
-      ch.forEach((c,i)=>TG.CloudStorage.setItem('fin_'+i,c,()=>{}));
-    }
-  } catch(e){}
+
+function tgSetItem(key, val){
+  return new Promise(resolve=>{
+    if(!cloudOn()) return resolve(false);
+    try{
+      TG.CloudStorage.setItem(key, String(val), (err, ok)=>{
+        resolve(!err);
+      });
+    }catch(e){ resolve(false); }
+  });
 }
-function scheduleCloud(){ if(!_ready||!cloudOn())return; clearTimeout(_cloudTimer); _cloudTimer=setTimeout(cloudSave,800); }
-function cloudLoad(cb){ if(!cloudOn()){cb(null);return;}
-  TG.CloudStorage.getItem('fin_n',(e,v)=>{ const n=parseInt(v); if(e||!n){cb(null);return;}
-    const keys=[];for(let i=0;i<n;i++)keys.push('fin_'+i);
-    TG.CloudStorage.getItems(keys,(e2,items)=>{ if(e2||!items){cb(null);return;}
-      let j='';for(let i=0;i<n;i++)j+=items['fin_'+i]||''; try{cb(JSON.parse(j))}catch(x){cb(null)} }); }); }
+function tgGetItem(key){
+  return new Promise(resolve=>{
+    if(!cloudOn()) return resolve(null);
+    try{
+      TG.CloudStorage.getItem(key, (err, val)=>{
+        resolve((err||val==null)?null:String(val));
+      });
+    }catch(e){ resolve(null); }
+  });
+}
+function tgGetItems(keys){
+  return new Promise(resolve=>{
+    if(!cloudOn()||!keys||!keys.length) return resolve({});
+    try{
+      TG.CloudStorage.getItems(keys, (err, items)=>{
+        resolve((err||!items)?{}:items);
+      });
+    }catch(e){ resolve({}); }
+  });
+}
+function tgRemoveItem(key){
+  return new Promise(resolve=>{
+    if(!cloudOn()) return resolve(false);
+    try{
+      TG.CloudStorage.removeItem(key, ()=>resolve(true));
+    }catch(e){ resolve(false); }
+  });
+}
+
+function chunkBytes(str, max=3500){
+  const enc=new TextEncoder();
+  const out=[];
+  let cur='', b=0;
+  for(const ch of str){
+    const n=enc.encode(ch).length;
+    if(b+n>max){ out.push(cur); cur=ch; b=n; }
+    else{ cur+=ch; b+=n; }
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+
+let _cloudSaving=false, _cloudQueued=false;
+async function cloudSave(){
+  if(!cloudOn()) return;
+  if(_cloudSaving){
+    _cloudQueued=true;
+    return;
+  }
+  _cloudSaving=true;
+  try{
+    const jsonStr=JSON.stringify(state);
+    const chunks=chunkBytes(jsonStr, 3500);
+    const prevNStr=await tgGetItem('fin_n');
+    const prevN=parseInt(prevNStr||'0', 10);
+
+    let allOk=true;
+    for(let i=0; i<chunks.length; i++){
+      const ok=await tgSetItem('fin_'+i, chunks[i]);
+      if(!ok){ allOk=false; break; }
+    }
+    if(allOk){
+      await tgSetItem('fin_n', String(chunks.length));
+      if(prevN>chunks.length){
+        for(let i=chunks.length; i<prevN; i++){
+          tgRemoveItem('fin_'+i);
+        }
+      }
+    }
+  }catch(e){
+    console.error('cloudSave err:', e);
+  }finally{
+    _cloudSaving=false;
+    if(_cloudQueued){
+      _cloudQueued=false;
+      cloudSave();
+    }
+  }
+}
+
+async function cloudLoad(){
+  if(!cloudOn()) return null;
+  try{
+    const nStr=await tgGetItem('fin_n');
+    const n=parseInt(nStr||'0', 10);
+    if(!n||isNaN(n)||n<=0) return null;
+    const keys=[];
+    for(let i=0; i<n; i++) keys.push('fin_'+i);
+    const items=await tgGetItems(keys);
+    let j='';
+    for(let i=0; i<n; i++){
+      const c=items['fin_'+i];
+      if(c==null) return null;
+      j+=c;
+    }
+    return JSON.parse(j);
+  }catch(e){
+    console.error('cloudLoad err:', e);
+    return null;
+  }
+}
+
+// ============ Holatlarni aqlli birlashtirish (Hech qachon ma'lumot yo'qotilmaydi) ============
+function mergeStates(base, incoming){
+  if(!incoming||typeof incoming!=='object') return base;
+  if(!base||typeof base!=='object') return incoming;
+  const res={...base};
+  const deleted=new Set(res.deletedIds||[]);
+  if(incoming.deletedIds&&Array.isArray(incoming.deletedIds)){
+    incoming.deletedIds.forEach(id=>deleted.add(id));
+  }
+  res.deletedIds=Array.from(deleted);
+
+  // 1. Tranzaksiyalar (tx) - id bo'yicha birlashtirish
+  const txMap=new Map();
+  (res.tx||[]).forEach(t=>{ if(t&&t.id&&!deleted.has(t.id)) txMap.set(t.id, t); });
+  (incoming.tx||[]).forEach(t=>{
+    if(t&&t.id&&!deleted.has(t.id)){
+      if(!txMap.has(t.id)){
+        txMap.set(t.id, t);
+      } else {
+        const exist=txMap.get(t.id);
+        const existT=new Date(exist.date||0).getTime();
+        const incomingT=new Date(t.date||0).getTime();
+        if(incomingT>existT) txMap.set(t.id, t);
+      }
+    }
+  });
+  res.tx=Array.from(txMap.values());
+  res.tx.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+
+  // 2. Qarzlar (debts) - id bo'yicha birlashtirish
+  const debtMap=new Map();
+  (res.debts||[]).forEach(d=>{ if(d&&d.id&&!deleted.has(d.id)) debtMap.set(d.id, d); });
+  (incoming.debts||[]).forEach(d=>{
+    if(d&&d.id&&!deleted.has(d.id)){
+      if(!debtMap.has(d.id)) debtMap.set(d.id, d);
+      else {
+        const exist=debtMap.get(d.id);
+        if((d.paid||0)>(exist.paid||0)) debtMap.set(d.id, d);
+      }
+    }
+  });
+  res.debts=Array.from(debtMap.values());
+
+  // 3. Xaridlar rejasi (wishlist) - id bo'yicha birlashtirish
+  const wishMap=new Map();
+  (res.wishlist||[]).forEach(w=>{ if(w&&w.id&&!deleted.has(w.id)) wishMap.set(w.id, w); });
+  (incoming.wishlist||[]).forEach(w=>{
+    if(w&&w.id&&!deleted.has(w.id)&&!wishMap.has(w.id)) wishMap.set(w.id, w);
+  });
+  res.wishlist=Array.from(wishMap.values());
+
+  // 4. Takrorlanuvchi (recurring) - id bo'yicha birlashtirish
+  const recMap=new Map();
+  (res.recurring||[]).forEach(r=>{ if(r&&r.id&&!deleted.has(r.id)) recMap.set(r.id, r); });
+  (incoming.recurring||[]).forEach(r=>{
+    if(r&&r.id&&!deleted.has(r.id)&&!recMap.has(r.id)) recMap.set(r.id, r);
+  });
+  res.recurring=Array.from(recMap.values());
+
+  // 5. Byudjetlar (budgets)
+  const bgMap=new Map();
+  (res.budgets||[]).forEach(b=>{ if(b&&b.id) bgMap.set(b.id, b); });
+  (incoming.budgets||[]).forEach(b=>{ if(b&&b.id&&!bgMap.has(b.id)) bgMap.set(b.id, b); });
+  res.budgets=Array.from(bgMap.values());
+
+  // 6. Maqsadlar (goals)
+  const gMap=new Map();
+  (res.goals||[]).forEach(g=>{ if(g&&g.id) gMap.set(g.id, g); });
+  (incoming.goals||[]).forEach(g=>{ if(g&&g.id&&!gMap.has(g.id)) gMap.set(g.id, g); });
+  res.goals=Array.from(gMap.values());
+
+  // 7. Kategoriyalar (cats)
+  const catKey=c=>`${c.n}__${c.t||'expense'}`;
+  const catMap=new Map();
+  (res.cats||[]).forEach(c=>{ if(c&&c.n) catMap.set(catKey(c), c); });
+  (incoming.cats||[]).forEach(c=>{ if(c&&c.n&&!catMap.has(catKey(c))) catMap.set(catKey(c), c); });
+  res.cats=Array.from(catMap.values());
+
+  // 8. Hisoblar (accounts)
+  const accMap=new Map();
+  (res.accounts||[]).forEach(a=>{ if(a&&a.id) accMap.set(a.id, a); });
+  (incoming.accounts||[]).forEach(a=>{ if(a&&a.id&&!accMap.has(a.id)) accMap.set(a.id, a); });
+  res.accounts=Array.from(accMap.values());
+
+  // 9. Vaqt va sozlamalar
+  const baseUp=res.updatedAt||0, incUp=incoming.updatedAt||0;
+  res.updatedAt=Math.max(baseUp, incUp);
+  if(incUp>baseUp){
+    if(incoming.currency) res.currency=incoming.currency;
+    if(incoming.theme) res.theme=incoming.theme;
+    if(typeof incoming.hideBalance==='boolean') res.hideBalance=incoming.hideBalance;
+    if(incoming.reportApi) res.reportApi=incoming.reportApi;
+  }
+  return res;
+}
 
 ensure();
 applyTheme();
@@ -380,7 +629,7 @@ function monthSummary(mk){
 function reportPayload(){
   const d=new Date(), months={};
   for(let i=0;i<3;i++){ const mk=monthKey(new Date(d.getFullYear(),d.getMonth()-i,1)); months[mk]=monthSummary(mk); }
-  return {initData:(TG&&TG.initData)||'', months, cur:SYM[state.currency]||state.currency};
+  return {initData:(TG&&TG.initData)||'', months, cur:SYM[state.currency]||state.currency, state: state};
 }
 async function reportPost(path,extra){
   const api=reportApi();
@@ -1600,6 +1849,8 @@ function saveTx(){
   save();closeSheet();notify('success');render();}
 function delTx(id){
   if(!confirm('Oʼchirilsinmi?'))return;
+  state.deletedIds=state.deletedIds||[];
+  state.deletedIds.push(id);
   state.tx=state.tx.filter(t=>t.id!==id);
   if(state.debts){
     state.debts = state.debts.filter(d=>d.txId!==id);
@@ -1789,10 +2040,13 @@ function saveDebt(){
 
 function delDebt(id){
   if(!confirm('Qarz oʻchirilsinmi?')) return;
+  state.deletedIds = state.deletedIds || [];
   const d = state.debts.find(x => x.id === id);
   if(d && d.txId){
+    state.deletedIds.push(d.txId);
     state.tx = state.tx.filter(t => t.id !== d.txId);
   }
+  state.deletedIds.push(id);
   state.debts = state.debts.filter(d => d.id !== id);
   save();
   closeSheet();
@@ -2214,6 +2468,8 @@ function saveWishlist(){
 
 function delWishlist(id){
   if(!confirm('Rejadagi bu buyum oʻchirilsinmi?')) return;
+  state.deletedIds = state.deletedIds || [];
+  state.deletedIds.push(id);
   state.wishlist = (state.wishlist || []).filter(w => w.id !== id);
   save();
   closeSheet();
@@ -2439,6 +2695,8 @@ function saveRecurring(){
 
 function delRecurring(id){
   if(!confirm('Takrorlanuvchi toʻlov oʻchirilsinmi?')) return;
+  state.deletedIds = state.deletedIds || [];
+  state.deletedIds.push(id);
   state.recurring = (state.recurring || []).filter(r => r.id !== id);
   save();
   closeSheet();
@@ -2554,24 +2812,67 @@ function applyRestore(raw){
 }
 function esc(s){return(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
-// ---- Ishga tushirish: avval lokal, keyin bulut bilan sync ----
-function boot(){
-  render(); // lokal maʼlumot bilan darhol koʼrsatamiz
-  setTimeout(syncReports,2500);
-  if(!cloudOn()){ _ready=true; runRecurring(); localWrite(); return; }
-  let done=false;
-  cloudLoad(cloud=>{ if(done)return; done=true; _ready=true;
-    if(cloud && (cloud.updatedAt||0) >= (state.updatedAt||0)){
-      // Bulutdagi maʼlumot yangiroq — uni olamiz (qayta yozmaymiz)
-      state=cloud; ensure(); applyTheme(); localWrite(); runRecurring();
-    } else {
-      // Lokal yangiroq yoki bulut boʼsh — bulutga yuboramiz
-      runRecurring(); save();
+// ---- Ishga tushirish: lokal, IndexedDB, bulut va worker bilan sinxronizatsiya ----
+async function boot(){
+  render(); // 1. Lokal maʼlumot bilan darhol koʼrsatamiz (0ms)
+  setTimeout(syncReports, 2500);
+
+  // 2. IndexedDB'dan yuklash (iOS WebKit'da localStorage tozalansa ham saqlanadi)
+  try {
+    const idbState = await idbGet();
+    if(idbState && typeof idbState === 'object' && (idbState.tx?.length || idbState.updatedAt)){
+      state = mergeStates(state, idbState);
+      ensure();
+      applyTheme();
+      localWrite();
+      render();
     }
-    render();
-  });
-  // Xavfsizlik: bulut 4s ichida javob bermasa, ilovani baribir ochamiz (qayta yozmasdan)
-  setTimeout(()=>{ if(done)return; done=true; _ready=true; runRecurring(); render(); },4000);
+  } catch(e){
+    console.warn('IDB load error:', e);
+  }
+
+  // 3. Telegram CloudStorage'dan yuklash va birlashtirish
+  if(cloudOn()){
+    try {
+      const cloud = await cloudLoad();
+      if(cloud && typeof cloud === 'object'){
+        state = mergeStates(state, cloud);
+        ensure();
+        applyTheme();
+        localWrite();
+        idbSet(state);
+        runRecurring();
+        render();
+      }
+    } catch(e){
+      console.warn('Cloud load error:', e);
+    }
+  }
+
+  _ready = true;
+  runRecurring();
+
+  // 4. Birlashgan holatni barcha xotiralarga saqlab qo'yamiz
+  if(cloudOn()){
+    cloudSave();
+  }
+  idbSet(state);
+
+  // 5. Agar ilova toza bo'lsa (barcha lokal xotiralar bo'sh), Worker zaxirasidan tiklash
+  if((!state.tx || state.tx.length === 0) && reportApi() && TG && TG.initData){
+    try {
+      const res = await reportPost('/pull');
+      if(res && res.ok && res.state){
+        state = mergeStates(state, res.state);
+        ensure();
+        applyTheme();
+        localWrite();
+        idbSet(state);
+        cloudSave();
+        render();
+      }
+    } catch(e){}
+  }
 }
 boot();
 </script>
