@@ -95,6 +95,15 @@
   .del{color:var(--expense);font-weight:600;cursor:pointer;font-size:13px}
   .hidden{display:none}
   select{appearance:none;background-image:none}
+  @media (min-width: 601px){
+    body{display:flex;justify-content:center}
+    .wrap{width:100%;max-width:600px;margin:0 auto;padding:20px 16px 110px}
+    .tabbar{max-width:600px;left:50% !important;right:auto !important;transform:translateX(-50%);border-radius:18px 18px 0 0;border-left:1px solid var(--sep);border-right:1px solid var(--sep);padding:8px 0 12px;box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+    .btn-fix{max-width:568px}
+    .modal{align-items:center;justify-content:center;padding:16px}
+    .sheet{border-radius:22px;max-height:86vh;box-shadow:0 12px 36px rgba(0,0,0,.25);animation:zoomIn .2s ease}
+    @keyframes zoomIn{from{transform:scale(0.95);opacity:0}to{transform:scale(1);opacity:1}}
+  }
 </style>
 </head>
 <body>
@@ -1708,8 +1717,21 @@ function viewSettings(){
   <div class="card"><h2>Tema</h2><div class="seg">
     ${['system','light','dark'].map(t=>`<button class="${state.theme===t?'on':''}" onclick="setTheme('${t}')">${{system:'Tizim',light:'Yorugʼ',dark:'Qorongʼu'}[t]}</button>`).join('')}</div>
     <h2 style="margin-top:14px">Valyuta</h2><div class="seg">${Object.keys(SYM).map(c=>`<button class="${state.currency===c?'on':''}" onclick="setCur('${c}')">${c}</button>`).join('')}</div></div>
-  <div class="card"><div class="between"><span>Jami tranzaksiya</span><b>${state.tx.length}</b></div>
-    <div class="between" style="margin-top:10px"><span>${cloudOn()?'☁️ Telegram sync':'📱 Faqat shu qurilma'}</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Yoniq':'Oflayn'}</b></div></div>
+  <div class="card">
+    <div class="between">
+      <div>
+        <div style="font-weight:700">☁️ Bulutli sinxronizatsiya</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">${cloudOn()?'Telefon va kompyuter oʻrtasida faol':'Faqat ushbu qurilmada'}</div>
+      </div>
+      <button class="chip on" id="syncNowBtn" style="border:none;padding:6px 14px;cursor:pointer" onclick="manualSync()">🔄 Yangilash</button>
+    </div>
+    <div class="between" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--sep);font-size:13px">
+      <span>Jami tranzaksiyalar:</span><b class="mono">${state.tx.length} ta</b>
+    </div>
+    <div class="between" style="margin-top:6px;font-size:13px">
+      <span>Sinxron holati:</span><b style="color:${cloudOn()?'var(--income)':'var(--text2)'}">${cloudOn()?'Ulangan (Telegram Cloud) ✅':'Oflayn (Faqat bu qurilma)'}</b>
+    </div>
+  </div>
   <div class="card">
     <h2>📊 Telegram oylik hisobot</h2>
     <div class="hint" style="margin:6px 0 4px">Cloudflare Worker manzili</div>
@@ -1724,7 +1746,7 @@ function viewSettings(){
     <button class="btn ghost" style="margin-top:10px" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
   </div>
-  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.2.0</div>`;}
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0</div>`;}
 
 function forceAppReload(){
   haptic('medium');
@@ -1734,6 +1756,25 @@ function forceAppReload(){
     window.location.replace(url.toString());
   } catch(e){
     window.location.reload();
+  }
+}
+
+async function manualSync(){
+  const btn = document.getElementById('syncNowBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Yuklanmoqda...'; }
+  haptic('medium');
+  try {
+    await syncWithCloud(false);
+    await cloudSave();
+    await syncReports();
+    notify('success');
+    alert('Sinxronlandi ✅ — Jami ' + state.tx.length + ' ta tranzaksiya');
+  } catch(e){
+    notify('error');
+    alert('Sinxronlash xatosi: ' + (e.message || e));
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 Yangilash'; }
+    render();
   }
 }
 
@@ -2849,17 +2890,8 @@ async function boot(){
     }
   }
 
-  _ready = true;
-  runRecurring();
-
-  // 4. Birlashgan holatni barcha xotiralarga saqlab qo'yamiz
-  if(cloudOn()){
-    cloudSave();
-  }
-  idbSet(state);
-
-  // 5. Agar ilova toza bo'lsa (barcha lokal xotiralar bo'sh), Worker zaxirasidan tiklash
-  if((!state.tx || state.tx.length === 0) && reportApi() && TG && TG.initData){
+  // 4. Worker zaxirasidan ham eng soʻnggi maʼlumotlarni birlashtiramiz (telefon <-> desktop)
+  if(reportApi() && TG && TG.initData){
     try {
       const res = await reportPost('/pull');
       if(res && res.ok && res.state){
@@ -2868,12 +2900,71 @@ async function boot(){
         applyTheme();
         localWrite();
         idbSet(state);
-        cloudSave();
         render();
       }
     } catch(e){}
   }
+
+  _ready = true;
+  runRecurring();
+
+  // 5. Birlashgan holatni barcha xotiralarga saqlab qo'yamiz
+  if(cloudOn()){
+    cloudSave();
+  }
+  idbSet(state);
 }
+
+// ============ Qurilmalararo davriy va avtomatik sinxronizatsiya ============
+let _syncing = false;
+async function syncWithCloud(silent = true){
+  if(_syncing) return;
+  _syncing = true;
+  let changed = false;
+  try {
+    if(cloudOn()){
+      const cloud = await cloudLoad();
+      if(cloud && typeof cloud === 'object'){
+        const prevTxLen = (state.tx||[]).length;
+        const prevUp = state.updatedAt || 0;
+        state = mergeStates(state, cloud);
+        if((state.tx||[]).length !== prevTxLen || (state.updatedAt||0) > prevUp){
+          changed = true;
+        }
+      }
+    }
+    if(reportApi() && TG && TG.initData){
+      const res = await reportPost('/pull');
+      if(res && res.ok && res.state){
+        const prevTxLen = (state.tx||[]).length;
+        const prevUp = state.updatedAt || 0;
+        state = mergeStates(state, res.state);
+        if((state.tx||[]).length !== prevTxLen || (state.updatedAt||0) > prevUp){
+          changed = true;
+        }
+      }
+    }
+    if(changed){
+      ensure();
+      localWrite();
+      idbSet(state);
+      render();
+    }
+  } catch(e){
+    if(!silent) console.warn('sync error:', e);
+  } finally {
+    _syncing = false;
+  }
+}
+
+window.addEventListener('focus', () => syncWithCloud(true));
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') syncWithCloud(true);
+});
+setInterval(() => {
+  if(document.visibilityState === 'visible') syncWithCloud(true);
+}, 25000);
+
 boot();
 </script>
 </body>
