@@ -909,19 +909,25 @@ export default {
         ok: true,
         service: 'finance-report-worker',
         features: FEATURES,
+        // Faqat shakl tekshiriladi - token qiymati hech qachon qaytarilmaydi
+        token: !env.TELEGRAM_BOT_TOKEN ? 'yoʻq'
+          : /^\d+:[\w-]{30,}$/.test(env.TELEGRAM_BOT_TOKEN) ? 'ok' : 'notoʻgʻri shakl',
         bot: !!env.WEBHOOK_SECRET,
         owner: env.OWNER_ID ? 'env' : 'kv',
         commands: BOT_COMMANDS.map((c) => c.command),
       });
     }
 
-    if (!env.TELEGRAM_BOT_TOKEN) return json({ ok: false, error: 'TELEGRAM_BOT_TOKEN sozlanmagan' }, 500);
-
     // ---- Bir martalik sozlash: /setup?secret=<WEBHOOK_SECRET> ----
+    // Diqqat: avval chaqiruvchi tasdiqlanadi, keyingina sozlama holati aytiladi -
+    // aks holda begona odam ham qanday sozlanmaganini bilib oladi.
     if (url.pathname === '/setup') {
       if (!env.WEBHOOK_SECRET) return json({ ok: false, error: 'WEBHOOK_SECRET sozlanmagan' }, 500);
       if (!safeEqual(url.searchParams.get('secret') || '', env.WEBHOOK_SECRET)) {
         return json({ ok: false, error: 'secret notoʻgʻri' }, 403);
+      }
+      if (!env.TELEGRAM_BOT_TOKEN) {
+        return json({ ok: false, error: 'TELEGRAM_BOT_TOKEN sozlanmagan yoki boʻsh' }, 500);
       }
       return json({ ok: true, result: await setup(env, url.origin) });
     }
@@ -929,9 +935,15 @@ export default {
     // ---- Telegram webhook ----
     if (url.pathname === '/webhook') {
       if (request.method !== 'POST') return json({ ok: false, error: 'POST kutilgan' }, 405);
-      if (!env.WEBHOOK_SECRET) return json({ ok: false, error: 'WEBHOOK_SECRET sozlanmagan' }, 500);
+      if (!env.WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
       if (!safeEqual(request.headers.get('X-Telegram-Bot-Api-Secret-Token') || '', env.WEBHOOK_SECRET)) {
         return new Response('forbidden', { status: 403 });
+      }
+      // Token yo'q bo'lsa javob yozib bo'lmaydi. 200 qaytaramiz - aks holda Telegram
+      // bu update'ni soatlab qayta-qayta yuborib turadi.
+      if (!env.TELEGRAM_BOT_TOKEN) {
+        console.error('webhook: TELEGRAM_BOT_TOKEN sozlanmagan yoki boʻsh');
+        return json({ ok: true });
       }
 
       let update;
@@ -963,6 +975,8 @@ export default {
 
     // ---- Mini App endpointlari (initData imzosi bilan) ----
     if (request.method !== 'POST') return json({ ok: false, error: 'POST kutilgan' }, 405);
+    // initData imzosi bot tokeni bilan tekshiriladi - token bo'lmasa hech narsa qilib bo'lmaydi
+    if (!env.TELEGRAM_BOT_TOKEN) return json({ ok: false, error: 'TELEGRAM_BOT_TOKEN sozlanmagan' }, 500);
 
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'JSON xato' }, 400); }

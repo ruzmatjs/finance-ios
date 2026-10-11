@@ -200,5 +200,44 @@ console.log('\n— Secret tekshiruvi —');
   ok(res.status === 403, 'noto‘g‘ri secret 403', String(res.status));
 }
 
+// ---------- Token yo'q bo'lganda tekshiruv tartibi ----------
+// Avval chaqiruvchi tasdiqlanishi kerak, keyingina sozlama holati aytilishi
+console.log('\n— Token sozlanmaganda —');
+{
+  const call = async (path, headers, env) => {
+    const real = globalThis.fetch;
+    globalThis.fetch = async () => new Response('{}');
+    try {
+      return await worker.fetch(new Request('https://w.test' + path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ update_id: 1, message: { message_id: 1, chat: { id: UID }, from: { id: UID }, text: '/bugun' } }),
+      }), { WEBHOOK_SECRET: SECRET, REPORTS: kv({}), ...env }, { waitUntil: () => {} });
+    } finally { globalThis.fetch = real; }
+  };
+
+  let res = await call('/webhook', {});
+  ok(res.status === 403, 'tokensiz webhook: secret\'siz chaqiruv 403 (500 emas)', String(res.status));
+
+  res = await call('/webhook', { 'X-Telegram-Bot-Api-Secret-Token': 'yolgon' });
+  ok(res.status === 403, 'tokensiz webhook: noto‘g‘ri secret 403', String(res.status));
+
+  // To'g'ri secret bilan 200 - aks holda Telegram update'ni soatlab qayta yuboradi
+  res = await call('/webhook', { 'X-Telegram-Bot-Api-Secret-Token': SECRET });
+  ok(res.status === 200, 'tokensiz webhook: to‘g‘ri secret 200 (Telegram qayta yubormasligi uchun)',
+    String(res.status));
+
+  // /setup: avval secret, keyin token holati
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => new Response('{}');
+  const env = { WEBHOOK_SECRET: SECRET, REPORTS: kv({}) };
+  let r1 = await worker.fetch(new Request('https://w.test/setup?secret=yolgon'), env, { waitUntil: () => {} });
+  let r2 = await worker.fetch(new Request('https://w.test/setup?secret=' + SECRET), env, { waitUntil: () => {} });
+  globalThis.fetch = real;
+  ok(r1.status === 403, '/setup: noto‘g‘ri secret 403 (token holati oshkor qilinmaydi)', String(r1.status));
+  const b2 = await r2.json();
+  ok(r2.status === 500 && /TELEGRAM_BOT_TOKEN/.test(b2.error || ''),
+    '/setup: to‘g‘ri secret bilan token muammosi aytiladi', JSON.stringify(b2));
+}
+
 console.log('\n' + pass + ' o‘tdi, ' + fail + ' xato\n');
 process.exit(fail ? 1 : 0);
