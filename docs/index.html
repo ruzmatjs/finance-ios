@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Har gal docs/index.html o'zgarganda shu sanani yangilang: ilova eski kesh ochilganini shundan biladi -->
-<meta name="app-version" content="2026-10-11b">
+<meta name="app-version" content="2026-10-11c">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -953,7 +953,23 @@ function applyTheme(){const t=state.theme;
 // ============ Navigatsiya ============
 let tab='home',page='home';
 function go(t){tab=t;page=t;document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));render(false);haptic();}
-function nav(p){page=p;render(false);haptic();}
+let _lastNav={p:'',t:0};
+function nav(p){
+  const t=Date.now();
+  // touchend va click ikkalasi ham kelsa - ikkinchisini tashlaymiz
+  if(p===_lastNav.p && t-_lastNav.t<500) return;
+  _lastNav={p,t};
+  page=p;render(false);haptic();
+}
+// iOS / Telegram WebView'da <div> ustidagi onclick ba'zan umuman ishlamaydi.
+// Shuning uchun data-nav atributli elementlarni touch orqali ham ushlaymiz.
+function navFromEvent(e){
+  const t=e.target;
+  const el=(t&&t.closest)?t.closest('[data-nav]'):null;
+  if(el) nav(el.getAttribute('data-nav'));
+}
+document.addEventListener('touchend', navFromEvent, {passive:true});
+document.addEventListener('click', navFromEvent);
 function render(keepScroll=true){
   const scrollY=keepScroll?window.scrollY:0;
   const catsScrollEl=document.getElementById('reportCats');
@@ -962,7 +978,20 @@ function render(keepScroll=true){
   const el=document.getElementById('app');
   const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
     accounts:viewAccounts,debts:viewDebts,wishlist:viewWishlist,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,compare:viewCompare,categories:viewCategories}[page];
-  el.innerHTML=v?v():viewHome();
+  // Ko'rinish xato bersa innerHTML umuman yozilmasdi va ekran o'zgarmay qolardi -
+  // "tugma ishlamayapti" ko'rinishini berardi. Endi xato ekranda ko'rsatiladi.
+  let out;
+  try {
+    out = v ? v() : viewHome();
+  } catch(err){
+    console.error('render', page, err);
+    out = `<div class="card"><b style="font-size:15px">⚠️ Sahifani ochib boʻlmadi</b>
+      <div class="muted" style="font-size:12px;margin-top:8px;line-height:1.5">
+        <b>${esc(String(page))}</b>: ${esc(String((err&&err.message)||err))}
+      </div>
+      <button class="btn ghost" style="margin-top:12px" onclick="go('home')">Asosiyga qaytish</button></div>`;
+  }
+  el.innerHTML=out;
 
   if(TG&&TG.BackButton){
     try {
@@ -997,7 +1026,7 @@ function render(keepScroll=true){
     window.scrollTo(0,0);
   }
 }
-function head(title,backTo){return `<div class="back" onclick="nav('${backTo}')">‹ Orqaga</div><h1>${title}</h1>`}
+function head(title,backTo){return `<div class="back" data-nav="${backTo}" onclick="nav('${backTo}')">‹ Orqaga</div><h1>${title}</h1>`}
 
 // ============ ASOSIY ============
 function viewHome(){
@@ -1010,7 +1039,7 @@ function viewHome(){
   const lentTot=activeDebts.filter(d=>d.type==='lend').reduce((s,d)=>s+Math.max(0,(parseFloat(d.amount)||0)-(parseFloat(d.paid)||0)),0);
   const borrowedTot=activeDebts.filter(d=>d.type==='borrow').reduce((s,d)=>s+Math.max(0,(parseFloat(d.amount)||0)-(parseFloat(d.paid)||0)),0);
   const debtsMini=`
-    <div class="card" role="button" tabindex="0" onclick="nav('debts')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)">
+    <div class="card" role="button" tabindex="0" data-nav="debts" onclick="nav('debts')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)">
       <div class="between" style="margin-bottom:8px">
         <h2 style="display:flex;align-items:center;gap:6px">🤝 Qarzlar</h2>
         <span class="chip on" style="font-size:12px;padding:3px 10px;background:var(--accent);color:#fff;border:none;cursor:pointer" onclick="nav('debts');event.stopPropagation()">Barchasi ›</span>
@@ -1134,7 +1163,7 @@ function weeklyChart(){
   </div>`;
 }
 function budgetMini(b){const sp=budgetSpent(b);const p=b.limit>0?sp/b.limit:0;const over=sp>b.limit;
-  return `<div style="margin:10px 0" onclick="nav('budgets')"><div class="between"><span style="font-weight:600">${esc(b.name)}</span><span class="mono" style="font-size:13px;color:${over?'var(--expense)':'var(--text2)'}">${compact(sp)}/${compact(b.limit)}</span></div>
+  return `<div style="margin:10px 0" data-nav="budgets" onclick="nav('budgets')"><div class="between"><span style="font-weight:600">${esc(b.name)}</span><span class="mono" style="font-size:13px;color:${over?'var(--expense)':'var(--text2)'}">${compact(sp)}/${compact(b.limit)}</span></div>
     <div class="prog"><i style="width:${Math.min(p*100,100)}%;background:${over?'var(--expense)':b.color||'var(--warn)'}"></i></div></div>`;}
 
 // ============ TRANZAKSIYALAR ============
@@ -1344,7 +1373,7 @@ function viewReport(){
   </div>`;
 
   // Oylar taqqoslash sahifasiga oʻtish
-  html += `<div class="card" role="button" tabindex="0" onclick="nav('compare')" style="padding:12px 14px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15);display:flex;align-items:center;gap:10px">
+  html += `<div class="card" role="button" tabindex="0" data-nav="compare" onclick="nav('compare')" style="padding:12px 14px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15);display:flex;align-items:center;gap:10px">
     <div class="cic" style="width:38px;height:38px;font-size:18px;background:rgba(94,92,230,0.14)">📊</div>
     <div style="flex:1">
       <div style="font-weight:700;font-size:14px">Oylarni taqqoslash</div>
@@ -1754,7 +1783,7 @@ function viewStats(){
     `<div class="grid2">${stat('Oʼrtacha kunlik',compact(avgD),'📅','var(--expense)')}${stat('Oʼrtacha oylik',compact(avgD*30),'🗓️','var(--warn)')}
       ${stat('Eng katta xarajat',compact(hiE),'⬆️','var(--expense)')}${stat('Eng katta daromad',compact(hiI),'⬇️','var(--income)')}</div>
     ${most?`<div class="card"><div class="between"><span>⭐ Eng koʼp ishlatilgan</span><b>${most[0]} (${most[1]})</b></div></div>`:''}
-    <div class="card" role="button" tabindex="0" onclick="nav('compare')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)"><div class="between"><h2>Oylar taqqoslash</h2><span class="link" style="font-size:12px">Bu oy vs oʻtgan oy ›</span></div><div class="bars" style="height:130px">${mc.map(x=>`<div style="flex:1;display:flex;gap:2px;align-items:flex-end"><div style="flex:1;background:var(--income);border-radius:4px 4px 0 0;height:${Math.max(x.inc/mmax*100,1)}%"></div><div style="flex:1;background:var(--expense);border-radius:4px 4px 0 0;height:${Math.max(x.exp/mmax*100,1)}%"></div></div>`).join('')}</div>
+    <div class="card" role="button" tabindex="0" data-nav="compare" onclick="nav('compare')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)"><div class="between"><h2>Oylar taqqoslash</h2><span class="link" style="font-size:12px">Bu oy vs oʻtgan oy ›</span></div><div class="bars" style="height:130px">${mc.map(x=>`<div style="flex:1;display:flex;gap:2px;align-items:flex-end"><div style="flex:1;background:var(--income);border-radius:4px 4px 0 0;height:${Math.max(x.inc/mmax*100,1)}%"></div><div style="flex:1;background:var(--expense);border-radius:4px 4px 0 0;height:${Math.max(x.exp/mmax*100,1)}%"></div></div>`).join('')}</div>
       <div class="row" style="gap:6px">${mc.map(x=>`<div class="bl" style="flex:1">${x.m.toLocaleDateString('ru-RU',{month:'short'})}</div>`).join('')}</div></div>
     <div class="card"><h2>Sarf issiqlik xaritasi</h2><div class="heat" style="margin-top:10px">${heat}</div><div class="hint">Toʼq rang — koʼproq sarf</div></div>`;}
 // ============ OYLAR TAQQOSLASH ============
@@ -2071,12 +2100,12 @@ function viewCategories(){
 function viewSettings(){
   return `<h1>Sozlamalar</h1>
   <div class="card">
-    <div class="listrow" role="button" tabindex="0" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('debts')">🤝 <span style="flex:1">Qarzlar (Berdilar / Oldilar)</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('recurring')">🔄 <span style="flex:1">Takrorlanuvchi toʼlovlar</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('calendar')">📅 <span style="flex:1">Kalendar</span> ›</div>
-    <div class="listrow" role="button" tabindex="0" onclick="nav('stats')">📈 <span style="flex:1">Statistika</span> ›</div></div>
+    <div class="listrow" role="button" tabindex="0" data-nav="accounts" onclick="nav('accounts')">🏦 <span style="flex:1">Hisoblar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" data-nav="debts" onclick="nav('debts')">🤝 <span style="flex:1">Qarzlar (Berdilar / Oldilar)</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" data-nav="categories" onclick="nav('categories')">🏷️ <span style="flex:1">Kategoriyalar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" data-nav="recurring" onclick="nav('recurring')">🔄 <span style="flex:1">Takrorlanuvchi toʼlovlar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" data-nav="calendar" onclick="nav('calendar')">📅 <span style="flex:1">Kalendar</span> ›</div>
+    <div class="listrow" role="button" tabindex="0" data-nav="stats" onclick="nav('stats')">📈 <span style="flex:1">Statistika</span> ›</div></div>
   <div class="card"><h2>Tema</h2><div class="seg">
     ${['system','light','dark'].map(t=>`<button class="${state.theme===t?'on':''}" onclick="setTheme('${t}')">${{system:'Tizim',light:'Yorugʼ',dark:'Qorongʼu'}[t]}</button>`).join('')}</div>
     <h2 style="margin-top:14px">Valyuta</h2><div class="seg">${Object.keys(SYM).map(c=>`<button class="${state.currency===c?'on':''}" onclick="setCur('${c}')">${c}</button>`).join('')}</div></div>
@@ -2109,7 +2138,10 @@ function viewSettings(){
     <button class="btn ghost" style="margin-top:10px" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
   </div>
-  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0<br><b style="color:var(--text2)">Versiya: ${esc(APP_VERSION||'nomaʼlum (eski)')}</b></div>`;}
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0<br>
+    <b style="color:var(--text2)">Versiya: ${esc(APP_VERSION||'nomaʼlum (eski)')}</b>
+    ${TG ? `<br><span style="font-size:11px">${esc(TG.platform||'?')} · Telegram ${esc(TG.version||'?')}</span>` : ''}
+  </div>`;}
 
 // ============ VERSIYA TEKSHIRUVI (Telegram WebView keshi) ============
 // Telegram mobil mijozi Mini App'ni keshlaydi - yangi deploy qilingan kod
