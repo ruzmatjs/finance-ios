@@ -963,8 +963,10 @@ export default {
         service: 'finance-report-worker',
         features: FEATURES,
         // Faqat shakl tekshiriladi - token qiymati hech qachon qaytarilmaydi
-        token: !env.TELEGRAM_BOT_TOKEN ? 'yoʻq'
-          : /^\d+:[\w-]{30,}$/.test(env.TELEGRAM_BOT_TOKEN) ? 'ok' : 'notoʻgʻri shakl',
+        token: env.TELEGRAM_BOT_TOKEN === undefined ? 'yoʻq (secret ulanmagan)'
+          : !String(env.TELEGRAM_BOT_TOKEN).trim() ? 'boʻsh (secret bor, qiymati yoʻq)'
+          : /^\d+:[\w-]{30,}$/.test(String(env.TELEGRAM_BOT_TOKEN).trim()) ? 'ok'
+          : 'notoʻgʻri shakl (' + String(env.TELEGRAM_BOT_TOKEN).trim().length + ' belgi)',
         bot: !!env.WEBHOOK_SECRET,
         owner: env.OWNER_ID ? 'env' : 'kv',
         commands: BOT_COMMANDS.map((c) => c.command),
