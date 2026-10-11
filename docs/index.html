@@ -959,7 +959,7 @@ function render(keepScroll=true){
 
   const el=document.getElementById('app');
   const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
-    accounts:viewAccounts,debts:viewDebts,wishlist:viewWishlist,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,categories:viewCategories}[page];
+    accounts:viewAccounts,debts:viewDebts,wishlist:viewWishlist,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,compare:viewCompare,categories:viewCategories}[page];
   el.innerHTML=v?v():viewHome();
 
   if(TG&&TG.BackButton){
@@ -1339,6 +1339,16 @@ function viewReport(){
     <div style="margin-top:8px;text-align:center;font-size:12px;color:var(--text2)">
       Tanlash: <input type="${reportRange==='month'?'month':reportRange==='year'?'number':'date'}" value="${getReportPickerVal()}" onchange="setReportPickerValue(this.value)" style="width:auto;display:inline-block;padding:3px 8px;font-size:12px;margin:0">
     </div>
+  </div>`;
+
+  // Oylar taqqoslash sahifasiga oʻtish
+  html += `<div class="card" role="button" tabindex="0" onclick="nav('compare')" style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+    <div class="cic" style="width:38px;height:38px;font-size:18px;background:rgba(94,92,230,0.14)">📊</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:14px">Oylarni taqqoslash</div>
+      <div class="muted" style="font-size:12px">Bu oy va oʻtgan oy — grafik va xulosa bilan</div>
+    </div>
+    <span class="link">›</span>
   </div>`;
 
   // AI Tahlil va Filtrlar
@@ -1742,9 +1752,312 @@ function viewStats(){
     `<div class="grid2">${stat('Oʼrtacha kunlik',compact(avgD),'📅','var(--expense)')}${stat('Oʼrtacha oylik',compact(avgD*30),'🗓️','var(--warn)')}
       ${stat('Eng katta xarajat',compact(hiE),'⬆️','var(--expense)')}${stat('Eng katta daromad',compact(hiI),'⬇️','var(--income)')}</div>
     ${most?`<div class="card"><div class="between"><span>⭐ Eng koʼp ishlatilgan</span><b>${most[0]} (${most[1]})</b></div></div>`:''}
-    <div class="card"><h2>Oylar taqqoslash</h2><div class="bars" style="height:130px">${mc.map(x=>`<div style="flex:1;display:flex;gap:2px;align-items:flex-end"><div style="flex:1;background:var(--income);border-radius:4px 4px 0 0;height:${Math.max(x.inc/mmax*100,1)}%"></div><div style="flex:1;background:var(--expense);border-radius:4px 4px 0 0;height:${Math.max(x.exp/mmax*100,1)}%"></div></div>`).join('')}</div>
+    <div class="card"><div class="between"><h2>Oylar taqqoslash</h2><span class="link" onclick="nav('compare')" style="font-size:12px">Bu oy vs oʻtgan oy ›</span></div><div class="bars" style="height:130px">${mc.map(x=>`<div style="flex:1;display:flex;gap:2px;align-items:flex-end"><div style="flex:1;background:var(--income);border-radius:4px 4px 0 0;height:${Math.max(x.inc/mmax*100,1)}%"></div><div style="flex:1;background:var(--expense);border-radius:4px 4px 0 0;height:${Math.max(x.exp/mmax*100,1)}%"></div></div>`).join('')}</div>
       <div class="row" style="gap:6px">${mc.map(x=>`<div class="bl" style="flex:1">${x.m.toLocaleDateString('ru-RU',{month:'short'})}</div>`).join('')}</div></div>
     <div class="card"><h2>Sarf issiqlik xaritasi</h2><div class="heat" style="margin-top:10px">${heat}</div><div class="hint">Toʼq rang — koʼproq sarf</div></div>`;}
+// ============ OYLAR TAQQOSLASH ============
+// Tanlangan oyni undan oldingi oy bilan yonma-yon ko'rsatadi. Joriy oy hali
+// tugamagani uchun standart holatda "teng kunlar" rejimi yoqiladi: ikki oy ham
+// faqat bugungi kun raqamiga qadar olinadi, aks holda taqqoslash adolatsiz bo'ladi.
+let cmpOffset = 0;         // 0 = bu oy, -1 = o'tgan oy ...
+let cmpFair = true;        // teng kunlar rejimi
+let cmpMetric = 'expense'; // chiziq grafigi: 'expense' | 'income'
+
+function cmpMonthStart(off){
+  const d = now();
+  return new Date(d.getFullYear(), d.getMonth() + off, 1);
+}
+function cmpDaysIn(s){ return new Date(s.getFullYear(), s.getMonth() + 1, 0).getDate(); }
+const UZ_MONTHS = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr'];
+function cmpLabel(s){ return UZ_MONTHS[s.getMonth()] + ' ' + s.getFullYear(); }
+function cmpShort(s){ return UZ_MONTHS[s.getMonth()].slice(0, 3); }
+
+/** Tanlangan oy joriy (tugamagan) oymi? */
+function cmpIsCurrent(off){
+  const d = now(), s = cmpMonthStart(off);
+  return s.getFullYear() === d.getFullYear() && s.getMonth() === d.getMonth();
+}
+/** Teng kunlar rejimida ikki oy ham shu kun raqamigacha olinadi (0 = butun oy). */
+function cmpLimitDay(){
+  return (cmpFair && cmpIsCurrent(cmpOffset)) ? now().getDate() : 0;
+}
+
+/**
+ * Bir oylik jamlanma: daromad, xarajat, kategoriya va kunlik taqsimot.
+ * `limitDay > 0` bo'lsa faqat shu kun raqamigacha hisoblanadi.
+ */
+function cmpAgg(off, limitDay){
+  const s = cmpMonthStart(off);
+  const total = cmpDaysIn(s);
+  const lim = limitDay > 0 ? Math.min(limitDay, total) : total;
+  const res = { s, total, lim, inc:0, exp:0, net:0, count:0, byCat:{},
+    dayExp:new Array(total + 1).fill(0), dayInc:new Array(total + 1).fill(0) };
+  (state.tx || []).forEach(t => {
+    if(!t || t.cat === 'Qarz') return;
+    if(t.type !== 'expense' && t.type !== 'income') return;
+    const d = parseSafeDate(t.date);
+    if(!d || d.getFullYear() !== s.getFullYear() || d.getMonth() !== s.getMonth()) return;
+    const day = d.getDate();
+    if(day > lim) return;
+    const a = parseFloat(t.amount) || 0;
+    res.count++;
+    if(t.type === 'expense'){
+      res.exp += a; res.dayExp[day] += a;
+      const k = t.cat || 'Boshqa';
+      res.byCat[k] = (res.byCat[k] || 0) + a;
+    } else {
+      res.inc += a; res.dayInc[day] += a;
+    }
+  });
+  res.net = res.inc - res.exp;
+  return res;
+}
+
+/** Foiz o'zgarish; oldingi oy nol bo'lsa foiz ma'nosiz - null qaytadi. */
+function cmpPct(cur, prev){
+  if(!prev) return null;
+  return Math.round(((cur - prev) / Math.abs(prev)) * 100);
+}
+/** O'zgarish chipi. `goodWhenDown` - kamayishi yaxshi ko'rsatkichlar uchun (xarajat). */
+function cmpChip(cur, prev, goodWhenDown){
+  const diff = cur - prev;
+  if(Math.round(diff) === 0) return `<span class="chip" style="font-size:11px;padding:2px 8px;border:none;background:var(--sep);color:var(--text2)">= oʻzgarmadi</span>`;
+  const pct = cmpPct(cur, prev);
+  const up = diff > 0;
+  const col = (goodWhenDown ? !up : up) ? 'var(--income)' : 'var(--expense)';
+  const txt = pct === null ? 'yangi' : Math.abs(pct) + '%';
+  return `<span class="chip" style="font-size:11px;padding:2px 8px;border:none;background:${col}1f;color:${col};font-weight:700">${up?'▲':'▼'} ${txt}</span>`;
+}
+
+/** Bitta ko'rsatkich: o'tgan oy va bu oy yonma-yon gorizontal ustun. */
+function cmpBarRow(title, prevV, curV, prevLbl, curLbl, color, goodWhenDown){
+  const max = Math.max(Math.abs(prevV), Math.abs(curV), 1);
+  const w = v => Math.max(Math.abs(v) / max * 100, 1.5);
+  const bar = (v, lbl, fill, strong) => `
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+      <span class="muted" style="flex:0 0 52px;font-size:11px">${esc(lbl)}</span>
+      <div style="flex:1;height:${strong?'18px':'14px'};background:var(--sep);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:${w(v)}%;background:${fill};border-radius:99px"></div>
+      </div>
+      <b class="mono" style="flex:0 0 auto;font-size:${strong?'13.5px':'12.5px'};color:${strong?'var(--text)':'var(--text2)'}">${compact(v)}</b>
+    </div>`;
+  const diff = curV - prevV;
+  const diffCol = (diff > 0) === !goodWhenDown ? 'var(--income)' : 'var(--expense)';
+  return `<div class="card">
+    <div class="between">
+      <b style="font-size:14px">${title}</b>
+      ${cmpChip(curV, prevV, goodWhenDown)}
+    </div>
+    ${bar(prevV, prevLbl, 'var(--text3)', false)}
+    ${bar(curV, curLbl, color, true)}
+    <div class="muted" style="font-size:11.5px;margin-top:7px">Farq: <b style="color:${Math.round(diff)===0?'var(--text2)':diffCol}">${fmtSigned(diff)}</b></div>
+  </div>`;
+}
+
+/** Kun bo'yicha jamlangan (kumulyativ) xarajat/daromad: ikki oy - ikki chiziq. */
+function cmpLineChart(prev, cur){
+  const W = 320, H = 158, PL = 30, PR = 6, PT = 12, PB = 20;
+  // O'q yorliqlari uchun valyutasiz qisqa son ("1.6M", "825K")
+  const axisNum = v => {
+    if(isHidden()) return '•••';
+    const x = Math.abs(v);
+    if(x >= 1e6) return (v / 1e6).toFixed(1).replace('.0','') + 'M';
+    if(x >= 1e3) return Math.round(v / 1e3) + 'K';
+    return String(Math.round(v));
+  };
+  const key = cmpMetric === 'income' ? 'dayInc' : 'dayExp';
+  const cum = agg => {
+    const pts = []; let s = 0;
+    for(let i = 1; i <= Math.min(agg.lim, agg.total); i++){ s += agg[key][i]; pts.push({x:i, y:s}); }
+    return pts;
+  };
+  const pPts = cum(prev), cPts = cum(cur);
+  // Teng kunlar rejimida o'q ham shu kunlargacha - grafik keraksiz cho'zilmaydi
+  const days = Math.max(prev.lim, cur.lim, 2);
+  const peak = Math.max(...pPts.map(p=>p.y), ...cPts.map(p=>p.y), 1);
+  const X = i => PL + ((i - 1) / (days - 1)) * (W - PL - PR);
+  const Y = v => H - PB - (v / peak) * (H - PT - PB);
+  const line = (pts, color, dash) => pts.length
+    ? `<polyline points="${pts.map(p=>X(p.x).toFixed(1)+','+Y(p.y).toFixed(1)).join(' ')}" fill="none"
+        stroke="${color}" stroke-width="${dash?2:2.6}" stroke-linecap="round" stroke-linejoin="round"
+        ${dash ? 'stroke-dasharray="5 4"' : ''}/>`
+    : '';
+  const last = pts => pts.length ? pts[pts.length - 1] : null;
+  const lc = last(cPts), lp = last(pPts);
+  const grid = [0, 0.5, 1].map(f => `
+    <line x1="${PL}" y1="${Y(peak*f).toFixed(1)}" x2="${W-PR}" y2="${Y(peak*f).toFixed(1)}" stroke="var(--sep)" stroke-width="1"/>
+    <text x="${PL-4}" y="${(Y(peak*f)+3.5).toFixed(1)}" text-anchor="end" font-size="8" fill="var(--text2)">${f===0?'0':axisNum(peak*f)}</text>`).join('');
+  const xLbl = [1, Math.round(days/2), days].map(i => `
+    <text x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="8.5" fill="var(--text2)">${i}</text>`).join('');
+  const metricName = cmpMetric === 'income' ? 'daromad' : 'xarajat';
+  const curColor = cmpMetric === 'income' ? 'var(--income)' : 'var(--expense)';
+  return `<div class="card">
+    <b style="font-size:14px">Kun boʻyicha jamlangan ${metricName}</b>
+    <div class="seg" style="margin:8px 0 2px">
+      <button class="${cmpMetric==='expense'?'on':''}" onclick="setCmpMetric('expense')">🔴 Xarajat</button>
+      <button class="${cmpMetric==='income'?'on':''}" onclick="setCmpMetric('income')">🟢 Daromad</button>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:6px">
+      ${grid}${xLbl}
+      ${line(pPts, 'var(--text3)', true)}
+      ${line(cPts, curColor, false)}
+      ${lp ? `<circle cx="${X(lp.x).toFixed(1)}" cy="${Y(lp.y).toFixed(1)}" r="3" fill="var(--text3)"/>` : ''}
+      ${lc ? `<circle cx="${X(lc.x).toFixed(1)}" cy="${Y(lc.y).toFixed(1)}" r="3.5" fill="${curColor}"/>` : ''}
+    </svg>
+    <div class="row" style="gap:14px;margin-top:8px;font-size:12px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:14px;border-top:2px dashed var(--text3);vertical-align:middle;margin-right:5px"></span>${esc(cmpShort(prev.s))} — ${compact(lp?lp.y:0)}</span>
+      <span><span style="display:inline-block;width:14px;border-top:3px solid ${curColor};vertical-align:middle;margin-right:5px"></span>${esc(cmpShort(cur.s))} — <b>${compact(lc?lc.y:0)}</b></span>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:6px">Chiziq yuqoriroq va tikroq boʻlsa — shu oy tezroq sarflanayotgani</div>
+  </div>`;
+}
+
+/** Kategoriyalar bo'yicha farq: markazdan ikki yonga ketadigan ustunlar. */
+function cmpCatDiff(prev, cur){
+  const keys = new Set([...Object.keys(prev.byCat), ...Object.keys(cur.byCat)]);
+  const rows = [...keys]
+    .map(k => ({ k, p: prev.byCat[k] || 0, c: cur.byCat[k] || 0, d: (cur.byCat[k] || 0) - (prev.byCat[k] || 0) }))
+    .filter(r => Math.round(r.d) !== 0)
+    .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
+    .slice(0, 8);
+  if(!rows.length){
+    return `<div class="card"><b style="font-size:14px">Kategoriyalar farqi</b>
+      <div class="muted" style="font-size:12.5px;margin-top:8px">Ikki oy kategoriyalari deyarli bir xil.</div></div>`;
+  }
+  const max = Math.max(...rows.map(r => Math.abs(r.d)), 1);
+  return `<div class="card">
+    <div class="between" style="margin-bottom:10px">
+      <b style="font-size:14px">Kategoriyalar farqi</b>
+      <span class="muted" style="font-size:11px">⬅ kamaydi · oshdi ➡</span>
+    </div>
+    ${rows.map(r => {
+      const up = r.d > 0;
+      const col = up ? 'var(--expense)' : 'var(--income)';
+      const w = Math.max(Math.abs(r.d) / max * 100, 3);
+      const cat = catBy(r.k, 'expense');
+      return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+        <span style="flex:0 0 90px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cat.e} ${esc(r.k)}</span>
+        <div style="flex:1;display:flex;align-items:center;height:14px">
+          <div style="flex:1;display:flex;justify-content:flex-end">
+            ${!up ? `<div style="width:${w}%;height:14px;background:${col};border-radius:99px 0 0 99px"></div>` : ''}
+          </div>
+          <div style="width:1px;height:14px;background:var(--text3);flex:0 0 1px"></div>
+          <div style="flex:1">
+            ${up ? `<div style="width:${w}%;height:14px;background:${col};border-radius:0 99px 99px 0"></div>` : ''}
+          </div>
+        </div>
+        <b class="mono" style="flex:0 0 auto;font-size:11.5px;color:${col}">${fmtSigned(r.d)}</b>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/** Oddiy tilda xulosa: nima o'zgardi va shu tezlikda oy oxirida nima bo'ladi. */
+function cmpSummary(prev, cur){
+  const li = [];
+  const dExp = cur.exp - prev.exp;
+  if(Math.round(dExp) === 0){
+    li.push('Xarajat oʻtgan oy darajasida qoldi.');
+  } else {
+    const pct = cmpPct(cur.exp, prev.exp);
+    const pctTxt = pct === null ? '' : ` (${Math.abs(pct)}%)`;
+    li.push(dExp > 0
+      ? `Xarajat <b style="color:var(--expense)">${fmt(dExp)}</b> ga koʻp${pctTxt}.`
+      : `Xarajat <b style="color:var(--income)">${fmt(-dExp)}</b> ga kam${pctTxt} — tejaldi.`);
+  }
+
+  const keys = new Set([...Object.keys(prev.byCat), ...Object.keys(cur.byCat)]);
+  const diffs = [...keys].map(k => ({ k, d: (cur.byCat[k]||0) - (prev.byCat[k]||0) }))
+    .filter(r => Math.round(r.d) !== 0).sort((a, b) => b.d - a.d);
+  if(diffs.length && diffs[0].d > 0){
+    li.push(`Eng koʻp oshgani — <b>${esc(diffs[0].k)}</b> (${fmtSigned(diffs[0].d)}).`);
+  }
+  const down = diffs[diffs.length - 1];
+  if(down && down.d < 0){
+    li.push(`Eng koʻp kamaygani — <b>${esc(down.k)}</b> (${fmtSigned(down.d)}).`);
+  }
+
+  // Joriy oy tugamagan bo'lsa: shu tezlikda oy oxiriga prognoz
+  if(cmpIsCurrent(cmpOffset) && cur.lim > 0 && cur.lim < cur.total){
+    const perDay = cur.exp / cur.lim;
+    const fc = perDay * cur.total;
+    const prevFull = cmpAgg(cmpOffset - 1, 0).exp;
+    const tail = prevFull > 0
+      ? (fc > prevFull
+        ? ` — oʻtgan oyning butun sarfidan <b style="color:var(--expense)">${compact(fc - prevFull)}</b> koʻp`
+        : ` — oʻtgan oyning butun sarfidan <b style="color:var(--income)">${compact(prevFull - fc)}</b> kam`)
+      : '';
+    li.push(`Shu tezlikda (kuniga ~${compact(perDay)}) oy oxirida <b>~${compact(fc)}</b> boʻladi${tail}.`);
+  }
+
+  const dNet = cur.net - prev.net;
+  if(Math.round(dNet) !== 0){
+    li.push(dNet > 0
+      ? `Sof natija <b style="color:var(--income)">${fmt(dNet)}</b> ga yaxshilandi.`
+      : `Sof natija <b style="color:var(--expense)">${fmt(-dNet)}</b> ga pasaydi.`);
+  }
+
+  return `<div class="card" style="background:var(--card2)">
+    <b style="font-size:14px">📝 Qisqa xulosa</b>
+    <div style="font-size:13px;line-height:1.65;margin-top:8px">
+      ${li.map(t => '• ' + t).join('<br>')}
+    </div>
+  </div>`;
+}
+
+function setCmpOffset(step){ cmpOffset = Math.min(0, cmpOffset + step); render(false); haptic(); }
+function setCmpFair(v){ cmpFair = v; render(false); haptic('selection'); }
+function setCmpMetric(m){ cmpMetric = m; render(false); haptic('selection'); }
+
+function viewCompare(){
+  const lim = cmpLimitDay();
+  const cur = cmpAgg(cmpOffset, lim);
+  const prev = cmpAgg(cmpOffset - 1, lim);
+  const curL = cmpLabel(cur.s), prevL = cmpLabel(prev.s);
+  const isCur = cmpIsCurrent(cmpOffset);
+
+  let html = head('Oylar taqqoslash', 'report');
+
+  // Qaysi ikki oy solishtirilmoqda
+  html += `<div class="card" style="padding:10px 14px">
+    <div class="between">
+      <button class="chip" onclick="setCmpOffset(-1)">‹ Oldingi</button>
+      <b style="font-size:13.5px;text-align:center">${esc(prevL)} → ${esc(curL)}</b>
+      <button class="chip" ${cmpOffset>=0?'style="opacity:.35;pointer-events:none"':''} onclick="setCmpOffset(1)">Keyingi ›</button>
+    </div>
+  </div>`;
+
+  // Teng kunlar rejimi faqat tugamagan oy uchun ma'noli
+  if(isCur){
+    const dayNo = now().getDate();
+    html += `<div class="card" style="padding:10px 14px">
+      <div class="seg">
+        <button class="${cmpFair?'on':''}" onclick="setCmpFair(true)">📆 Teng kunlar (1–${dayNo})</button>
+        <button class="${!cmpFair?'on':''}" onclick="setCmpFair(false)">🗓️ Butun oy</button>
+      </div>
+      <div class="muted" style="font-size:11.5px;margin-top:7px;line-height:1.45">
+        ${cmpFair
+          ? `Bu oy hali tugamagan — adolatli boʻlishi uchun ikki oy ham <b>1–${dayNo}</b> kunlari boʻyicha olindi.`
+          : `Toʻliq ${esc(prevL)} va hozirgacha yigʻilgan ${esc(curL)} solishtirilmoqda.`}
+      </div>
+    </div>`;
+  }
+
+  if(!cur.count && !prev.count){
+    return html + emptyBig('📊', 'Maʼlumot yoʻq', 'Bu ikki oyda tranzaksiyalar mavjud emas');
+  }
+
+  const prevShort = cmpShort(prev.s), curShort = cmpShort(cur.s);
+  html += cmpBarRow('💸 Xarajat', prev.exp, cur.exp, prevShort, curShort, 'var(--expense)', true);
+  html += cmpBarRow('💰 Daromad', prev.inc, cur.inc, prevShort, curShort, 'var(--income)', false);
+  html += cmpBarRow('⚖️ Sof natija', prev.net, cur.net, prevShort, curShort, 'var(--accent)', false);
+  html += cmpLineChart(prev, cur);
+  html += cmpCatDiff(prev, cur);
+  html += cmpSummary(prev, cur);
+  html += `<div style="height:20px"></div>`;
+  return html;
+}
+
 // ============ KATEGORIYALAR ============
 let catTab='expense';
 function viewCategories(){

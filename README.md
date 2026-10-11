@@ -198,6 +198,23 @@ Tekshirish: **Actions → "Oy oxiri baholash eslatmasi" → Run workflow** → `
 > Xabar matni umumiy — nechta xarid baholanmaganini bot bilmaydi, chunki maʼlumot
 > Telegram CloudStorage'da (faqat Mini App ichida) saqlanadi.
 
+## Oylarni taqqoslash (Mini App)
+
+**Hisobot → Oylarni taqqoslash** sahifasi tanlangan oyni undan oldingi oy bilan yonma-yon
+koʻrsatadi:
+
+- **Xarajat / Daromad / Sof natija** — har biri ikkita gorizontal ustun (oʻtgan oy kulrang,
+  bu oy rangli) va foiz oʻzgarishi chipi bilan.
+- **Kun boʻyicha jamlangan chiziq grafik** — ikki oyning kumulyativ sarfi bitta oʻqda.
+  Chiziq tikroq boʻlsa — shu oy tezroq sarflanayotgani darhol koʻrinadi.
+- **Kategoriyalar farqi** — markazdan ikki yonga ketadigan ustunlar: nima oshdi, nima kamaydi.
+- **Qisqa xulosa** — oddiy tilda, shu tezlikda oy oxirida qancha boʻlishi prognozi bilan.
+
+Joriy oy hali tugamagani uchun standart holatda **teng kunlar** rejimi yoqiladi: ikki oy ham
+faqat bugungi kun raqamiga qadar olinadi (masalan 1–11), aks holda tugamagan oy har doim
+“kamroq sarflandi” koʻrinib qolardi. **Butun oy** tugmasi bilan toʻliq oyga oʻtiladi.
+Qarz tranzaksiyalari hisobga olinmaydi.
+
 ## Telegram bot (Mini App + Cloudflare Worker)
 
 Bot tokenini ochiq `docs/index.html` ichiga yozib boʻlmaydi, maʼlumot esa Telegram
