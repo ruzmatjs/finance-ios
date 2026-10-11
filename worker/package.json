@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "test": "node test/parse.test.mjs && node test/morning.test.mjs && node test/cron.test.mjs"
+    "test": "node test/parse.test.mjs && node test/morning.test.mjs && node test/cron.test.mjs && node test/webhook.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^3.90.0"

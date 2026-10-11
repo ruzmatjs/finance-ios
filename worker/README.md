@@ -227,7 +227,7 @@ oqishidan qatʼi nazar solishtiriladi.
 
 | Metod | Manzil | Vazifasi |
 |---|---|---|
-| `GET` | `/` | Holat tekshiruvi |
+| `GET` | `/` | Holat: deploy qilingan `features`, `bot`, `commands` (9-boʻlimga qarang) |
 | `GET` | `/setup?secret=` | Webhook + buyruqlar + menu tugmasini roʻyxatdan oʻtkazadi |
 | `POST` | `/webhook` | Telegram update (faqat Telegram chaqiradi) |
 | `POST` | `/sync` | State va oylik jamlanmani KV'ga saqlaydi, `ackPending` ni qayta ishlaydi |
@@ -248,19 +248,67 @@ Cron jadvallari:
 Rejalashtirilgan funksiyalar va ataylab qilinmayotgan narsalar:
 [`ROADMAP.md`](ROADMAP.md).
 
-## 9. Testlar va loglar
+## 9. Nosozlikni topish
+
+**Bot hech qanday buyruqqa javob bermaydi?** Birinchi navbatda qaysi kod deploy
+qilinganini tekshiring:
+
+```bash
+curl https://finance-report.ruzmatjs.workers.dev/
+```
+
+Kutilgan javob:
+
+```json
+{
+  "ok": true,
+  "service": "finance-report-worker",
+  "features": ["sync", "report", "webhook", "text-entry", "morning"],
+  "bot": true,
+  "owner": "kv",
+  "commands": ["bugun", "balans", "oy", "hisobot", "bekor", "ertalab", "help"]
+}
+```
+
+| Nima koʻrsangiz | Maʼnosi | Nima qilish kerak |
+|---|---|---|
+| `features` maydoni **yoʻq** | Eski kod deployda turibdi — `/webhook` endpoint'i mavjud emas, Telegram chaqiradigan manzil yoʻq | `npx wrangler deploy` |
+| `features` ichida `morning` yoʻq | Deploy eski, ertalabki xabar hali yoʻq | `npx wrangler deploy` |
+| `"bot": false` | `WEBHOOK_SECRET` secret qoʻyilmagan — webhook 500 bilan rad etiladi | `npx wrangler secret put WEBHOOK_SECRET`, soʻng deploy |
+| `commands` ichida buyruq yoʻq | Kod eski | `npx wrangler deploy` |
+| Hammasi toʻgʻri, lekin bot jim | Webhook roʻyxatdan oʻtmagan | `/setup?secret=<WEBHOOK_SECRET>` ni brauzerda ochish |
+| Bot `"Bu shaxsiy bot."` deb javob beradi | KV'dagi `owner` boshqa odamga yozilgan | `wrangler.toml` ga `OWNER_ID` qoʻyish (env KV'dan ustun turadi) |
+
+**Yangi buyruq menyuda koʻrinmaydi?** Kod deploy boʻlgan boʻlsa buyruq qoʻlda yozilsa
+ishlaydi, lekin menyu roʻyxati `setMyCommands` orqali alohida yangilanadi — `/setup` ni
+qayta ochish kerak.
+
+Webhook holatini Telegram'dan soʻrash (token kerak):
+
+```bash
+curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
+```
+
+Javobda `url` sizning Worker manzilingiz + `/webhook` boʻlishi va
+`last_error_message` boʻsh boʻlishi kerak.
+
+## 10. Testlar va loglar
 
 ```bash
 npm test
 ```
 
-Uchta toʻplam, jami **89 ta holat**:
+Toʻrtta toʻplam, jami **120 ta holat**:
 
 | Fayl | Nimani tekshiradi |
 |---|---|
 | `test/parse.test.mjs` | Summa formatlari, soʻz tartibi, qoʻshimchalar, hisob tanlash, balans |
 | `test/morning.test.mjs` | Ertalabki xabar: vaqt mintaqasi, byudjet hisobi, toʻlov va qarz muddatlari |
-| `test/cron.test.mjs` | Cron dispatch — KV va Telegram API mock qilinadi, tashqi soʻrov ketmaydi |
+| `test/cron.test.mjs` | Cron dispatch — qaysi jadval qaysi xabarni yuboradi |
+| `test/webhook.test.mjs` | Har bir buyruqning haqiqiy javob matni, ega tekshiruvi, secret |
+
+`cron.test.mjs` va `webhook.test.mjs` da KV hamda Telegram API mock qilinadi —
+test paytida tashqi soʻrov ketmaydi.
 
 ```bash
 npx wrangler tail

@@ -29,6 +29,12 @@ const TZ_OFFSET_MS = 5 * 3600 * 1000;
 /** Oylik hisobot jadvali (wrangler.toml dagi bilan bir xil bo'lishi kerak). */
 const MONTHLY_CRON = '0 5 1 * *';
 
+/**
+ * Shu kod nimani biladi. `GET /` javobida qaytariladi - deploy qilingan versiya
+ * eskiligini tekshirish uchun. Yangi imkoniyat qo'shilganda shu yerga ham qo'shiladi.
+ */
+const FEATURES = ['sync', 'report', 'webhook', 'text-entry', 'morning'];
+
 const enc = new TextEncoder();
 
 async function hmac(keyBytes, msg) {
@@ -861,6 +867,17 @@ const json = (obj, status) => new Response(JSON.stringify(obj), {
   },
 });
 
+/** Telegram menyusida ko'rinadigan buyruqlar. */
+const BOT_COMMANDS = [
+  { command: 'bugun', description: 'Kunning rejasi' },
+  { command: 'balans', description: 'Hisoblar boʻyicha qoldiq' },
+  { command: 'oy', description: 'Shu oy jamlanmasi' },
+  { command: 'hisobot', description: 'Oylik hisobotni yuborish' },
+  { command: 'bekor', description: 'Oxirgi kiritilganni oʻchirish' },
+  { command: 'ertalab', description: 'Ertalabki xabarni yoqish/oʻchirish' },
+  { command: 'help', description: 'Yordam va namunalar' },
+];
+
 /** Webhook, buyruqlar ro'yxati va menu tugmasini ro'yxatdan o'tkazadi. */
 async function setup(env, origin) {
   const token = env.TELEGRAM_BOT_TOKEN;
@@ -870,17 +887,7 @@ async function setup(env, origin) {
     allowed_updates: ['message', 'callback_query'],
     drop_pending_updates: true,
   });
-  const cmds = await tgApi(token, 'setMyCommands', {
-    commands: [
-      { command: 'bugun', description: 'Kunning rejasi' },
-      { command: 'balans', description: 'Hisoblar boʻyicha qoldiq' },
-      { command: 'oy', description: 'Shu oy jamlanmasi' },
-      { command: 'hisobot', description: 'Oylik hisobotni yuborish' },
-      { command: 'bekor', description: 'Oxirgi kiritilganni oʻchirish' },
-      { command: 'ertalab', description: 'Ertalabki xabarni yoqish/oʻchirish' },
-      { command: 'help', description: 'Yordam va namunalar' },
-    ],
-  });
+  const cmds = await tgApi(token, 'setMyCommands', { commands: BOT_COMMANDS });
   const menu = env.MINIAPP_URL
     ? await tgApi(token, 'setChatMenuButton', {
       menu_button: { type: 'web_app', text: 'Ilova', web_app: { url: env.MINIAPP_URL } },
@@ -896,7 +903,16 @@ export default {
 
     if (request.method === 'OPTIONS') return json({ ok: true });
     if (url.pathname === '/' && request.method === 'GET') {
-      return json({ ok: true, service: 'finance-report-worker', bot: !!env.WEBHOOK_SECRET });
+      // `features` deploy qilingan kod nimani biladi - shuni ko'rsatadi.
+      // `curl <worker>/` eski versiya deploy'da turganini darhol bildiradi.
+      return json({
+        ok: true,
+        service: 'finance-report-worker',
+        features: FEATURES,
+        bot: !!env.WEBHOOK_SECRET,
+        owner: env.OWNER_ID ? 'env' : 'kv',
+        commands: BOT_COMMANDS.map((c) => c.command),
+      });
     }
 
     if (!env.TELEGRAM_BOT_TOKEN) return json({ ok: false, error: 'TELEGRAM_BOT_TOKEN sozlanmagan' }, 500);
