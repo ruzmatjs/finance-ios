@@ -46,6 +46,7 @@ Har bir yozuvdan keyin ikki tugma chiqadi: **✏️ Kategoriya** (oʻzgartirish)
 | `/bugun` | Kunning rejasi (ertalabki xabarning oʻzi) |
 | `/bekor` | Oxirgi kiritilganni oʻchirish |
 | `/ertalab` | Ertalabki xabarni yoqish/oʻchirish |
+| `/eslatma` | Reja sanasi eslatmasini yoqish/oʻchirish |
 | `/help` | Yordam va namunalar |
 
 ---
@@ -184,6 +185,28 @@ byudjetlari boʻlsa ular qoʻshiladi.
 **Oʻchirish:** `/ertalab`. Qayta yoqish ham shu buyruq. Holat KV'da (`morning`) saqlanadi,
 standart holatda yoqilgan. Istalgan paytda koʻrish: `/bugun`.
 
+### Xaridlar rejasi eslatmasi
+
+Mini App'dagi **Rejalar** boʻlimida har bir xaridga ixtiyoriy **rejalashtirilgan sana**
+qoʻyish mumkin. Shu sanaga **bir kun qolganda ertalab 09:00** (Toshkent) da lichkaga
+eslatma keladi:
+
+```
+🛍️ Ertaga rejadagi xarid
+
+• iPhone 16 — 1 200 000 soʻm (Texnika)
+   📝 Doʻkon: Mediapark
+
+💵 Qoldiq: 2 000 000 soʻm
+```
+
+Bir kunda bir nechta reja boʻlsa hammasi bitta xabarda (qimmatrogʻi yuqorida) keladi va
+jami summa koʻrsatiladi. Jami qoldiqdan oshsa ogohlantirish qoʻshiladi. "Sotib oldim" deb
+belgilangan buyumlarga eslatma ketmaydi.
+
+**Oʻchirish:** `/eslatma` (holat KV'da `plans`, standart holatda yoqilgan). Ertalabki
+xabardan mustaqil — biri oʻchirilsa ikkinchisi ishlashda davom etadi.
+
 ## 5. Oylik hisobot
 
 Har oyning **1-sanasi 10:00** (Toshkent) da oʻtgan oy hisoboti avtomatik keladi:
@@ -240,6 +263,7 @@ Cron jadvallari:
 |---|---|---|
 | `0 5 1 * *` | Har oyning 1-sanasi 10:00 | Oʻtgan oy hisoboti |
 | `0 3 * * *` | Har kuni 08:00 | Kunning rejasi (`/ertalab` bilan oʻchiriladi) |
+| `0 4 * * *` | Har kuni 09:00 | Ertaga rejalashtirilgan xaridlar (`/eslatma` bilan oʻchiriladi) |
 
 ---
 
@@ -263,10 +287,10 @@ Kutilgan javob:
 {
   "ok": true,
   "service": "finance-report-worker",
-  "features": ["sync", "report", "webhook", "text-entry", "morning"],
+  "features": ["sync", "report", "webhook", "text-entry", "morning", "plan-reminder"],
   "bot": true,
   "owner": "kv",
-  "commands": ["bugun", "balans", "oy", "hisobot", "bekor", "ertalab", "help"]
+  "commands": ["bugun", "balans", "oy", "hisobot", "bekor", "ertalab", "eslatma", "help"]
 }
 ```
 
@@ -274,6 +298,7 @@ Kutilgan javob:
 |---|---|---|
 | `features` maydoni **yoʻq** | Eski kod deployda turibdi — `/webhook` endpoint'i mavjud emas, Telegram chaqiradigan manzil yoʻq | `npx wrangler deploy` |
 | `features` ichida `morning` yoʻq | Deploy eski, ertalabki xabar hali yoʻq | `npx wrangler deploy` |
+| `features` ichida `plan-reminder` yoʻq | Deploy eski, reja sanasi eslatmasi hali yoʻq | `npx wrangler deploy` |
 | `"bot": false` | `WEBHOOK_SECRET` secret qoʻyilmagan — webhook 500 bilan rad etiladi | `npx wrangler secret put WEBHOOK_SECRET`, soʻng deploy |
 | `commands` ichida buyruq yoʻq | Kod eski | `npx wrangler deploy` |
 | Hammasi toʻgʻri, lekin bot jim | Webhook roʻyxatdan oʻtmagan | `/setup?secret=<WEBHOOK_SECRET>` ni brauzerda ochish |
@@ -298,12 +323,13 @@ Javobda `url` sizning Worker manzilingiz + `/webhook` boʻlishi va
 npm test
 ```
 
-Toʻrtta toʻplam, jami **120 ta holat**:
+Beshta toʻplam:
 
 | Fayl | Nimani tekshiradi |
 |---|---|
 | `test/parse.test.mjs` | Summa formatlari, soʻz tartibi, qoʻshimchalar, hisob tanlash, balans |
 | `test/morning.test.mjs` | Ertalabki xabar: vaqt mintaqasi, byudjet hisobi, toʻlov va qarz muddatlari |
+| `test/plan.test.mjs` | Reja eslatmasi: sana hisobi, saralash, qoldiq ogohlantirishi |
 | `test/cron.test.mjs` | Cron dispatch — qaysi jadval qaysi xabarni yuboradi |
 | `test/webhook.test.mjs` | Har bir buyruqning haqiqiy javob matni, ega tekshiruvi, secret |
 

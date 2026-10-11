@@ -354,6 +354,7 @@ function ensure(){
     w.priority = w.priority || 'medium';
     w.status = w.status || 'planned';
     w.note = w.note || '';
+    w.dueDate = w.dueDate || '';
     w.date = w.date || new Date().toISOString();
   });
 
@@ -1532,6 +1533,27 @@ function byPriority(a, b){
   const ra = WISH_PR_RANK[a.priority] ?? 1, rb = WISH_PR_RANK[b.priority] ?? 1;
   return ra - rb || (b.price || 0) - (a.price || 0);
 }
+/** 'YYYY-MM-DD' -> bugundan farq kunlarda: 0 = bugun, 1 = ertaga, -1 = kecha. */
+function daysUntil(ymd){
+  const dt = parseSafeDate(ymd);
+  if(!dt) return null;
+  const now = new Date();
+  const target = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target - today) / 86400000);
+}
+/** Rejalashtirilgan sana chipi: qancha kun qolgani bilan. */
+function wishDueChip(w){
+  if(!w.dueDate || w.status === 'bought') return '';
+  const days = daysUntil(w.dueDate);
+  if(days === null) return '';
+  const when = days < 0 ? `${-days} kun oʻtdi`
+    : days === 0 ? 'bugun'
+    : days === 1 ? 'ertaga'
+    : `${days} kun qoldi`;
+  const color = days < 0 ? 'var(--expense)' : (days <= 1 ? 'var(--warn)' : 'var(--text2)');
+  return `<span class="chip" style="font-size:11px;padding:2px 8px;border:none;background:var(--sep);color:${color}">📅 ${fmtD(w.dueDate)} · ${when}</span>`;
+}
 function viewWishlist(){
   const all = state.wishlist || [];
   const planned = all.filter(w => w.status !== 'bought').sort(byPriority);
@@ -1593,6 +1615,7 @@ function viewWishlist(){
             <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
               <span class="chip" style="font-size:11px;padding:2px 8px;background:${cat.c}22;color:${cat.c};border:none">${cat.e} ${esc(w.cat || 'Xarid')}</span>
               <span class="chip" style="font-size:11px;padding:2px 8px;border:none;background:var(--sep);color:${prColor}">${prText}</span>
+              ${wishDueChip(w)}
             </div>
           </div>
           <div class="mono" style="font-weight:800;font-size:17px;color:${isBought?'var(--income)':'var(--accent)'}">${fmt(w.price)}</div>
@@ -2313,6 +2336,7 @@ function openWishlist(id){
     cat: 'Texnika',
     priority: 'medium',
     note: '',
+    dueDate: '',
     status: 'planned'
   };
   openSheet(wishlistSheet);
@@ -2391,6 +2415,10 @@ function wishlistSheet(){
     <button type="button" data-p="low" class="${curPr==='low'?'on':''}" onclick="setWishPriority('low')">⭐ Oddiy</button>
   </div>
 
+  <label class="fld">Rejalashtirilgan sana (Ixtiyoriy)</label>
+  <input type="date" id="wdue" value="${form.dueDate||''}" oninput="form.dueDate=this.value">
+  <div class="muted" style="font-size:11.5px;margin-top:5px;line-height:1.4">⏰ Sanadan 1 kun oldin ertalab 9:00 da Telegramga eslatma keladi</div>
+
   <label class="fld">Izoh yoki Havola (Ixtiyoriy)</label>
   <input id="wnote" placeholder="Doʻkon, model yoki havola" value="${esc(form.note||'')}" oninput="form.note=this.value">
 
@@ -2465,6 +2493,8 @@ function saveWishlistInputs(){
   const pEl = document.getElementById('wprice'); if(pEl&&typeof pEl.value==='string') form.price = pEl.value.replace(/\s/g,'').replace(/,/g,'.');
   const cEl = document.getElementById('wcat'); if(cEl&&typeof cEl.value==='string') form.cat = cEl.value;
   const nEl = document.getElementById('wnote'); if(nEl&&typeof nEl.value==='string') form.note = nEl.value;
+  // type="date" kalendardan tanlaganda oninput'ni har doim bermaydi - shu yerda o'qiymiz
+  const dEl = document.getElementById('wdue'); if(dEl&&typeof dEl.value==='string') form.dueDate = dEl.value;
   try {
     const actBtn = (typeof document.querySelector === 'function') ? document.querySelector('#wishPriorityBtns button.on') : null;
     if(actBtn && actBtn.dataset && actBtn.dataset.p) form.priority = actBtn.dataset.p;
@@ -2501,6 +2531,8 @@ function saveWishlist(){
     return;
   }
 
+  const due = form.dueDate || '';
+
   state.wishlist = state.wishlist || [];
   if(form.edit){
     const w = state.wishlist.find(x => x.id === form.edit);
@@ -2511,6 +2543,7 @@ function saveWishlist(){
       w.cat = form.cat || 'Xarid';
       w.priority = form.priority || 'medium';
       w.note = form.note ? form.note.trim() : '';
+      w.dueDate = due;
     }
   } else {
     state.wishlist.push({
@@ -2521,6 +2554,7 @@ function saveWishlist(){
       cat: form.cat || 'Xarid',
       priority: form.priority || 'medium',
       note: form.note ? form.note.trim() : '',
+      dueDate: due,
       status: 'planned',
       date: new Date().toISOString()
     });

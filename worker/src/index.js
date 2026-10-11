@@ -29,11 +29,17 @@ const TZ_OFFSET_MS = 5 * 3600 * 1000;
 /** Oylik hisobot jadvali (wrangler.toml dagi bilan bir xil bo'lishi kerak). */
 const MONTHLY_CRON = '0 5 1 * *';
 
+/** Kunning rejasi: har kuni 08:00 Toshkent. */
+const MORNING_CRON = '0 3 * * *';
+
+/** Xaridlar rejasi eslatmasi: har kuni 09:00 Toshkent. */
+const PLAN_CRON = '0 4 * * *';
+
 /**
  * Shu kod nimani biladi. `GET /` javobida qaytariladi - deploy qilingan versiya
  * eskiligini tekshirish uchun. Yangi imkoniyat qo'shilganda shu yerga ham qo'shiladi.
  */
-const FEATURES = ['sync', 'report', 'webhook', 'text-entry', 'morning'];
+const FEATURES = ['sync', 'report', 'webhook', 'text-entry', 'morning', 'plan-reminder'];
 
 const enc = new TextEncoder();
 
@@ -633,6 +639,43 @@ function buildMorning(rec, cur, d) {
   return lines.join('\n');
 }
 
+/**
+ * Xaridlar rejasidagi buyumlar uchun eslatma: belgilangan sanaga bir kun qolganda.
+ * `days` berilsa shu kunlik farqdagi buyumlar olinadi (standart: 1 = ertaga).
+ * Hech narsa topilmasa null qaytaradi - xabar yuborilmaydi.
+ */
+function buildPlanReminder(rec, cur, d, days = 1) {
+  d = d || nowTashkent();
+  cur = cur || 'soʻm';
+  const st = rec.state;
+  if (!st) return null;
+
+  const items = (st.wishlist || [])
+    .filter((w) => w && w.status !== 'bought' && w.dueDate)
+    .filter((w) => daysFromToday(w.dueDate, d) === days)
+    .sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+  if (!items.length) return null;
+
+  const when = days === 0 ? 'Bugun' : days === 1 ? 'Ertaga' : days + ' kundan keyin';
+  const lines = ['🛍️ <b>' + when + ' rejadagi xarid</b>', ''];
+  let total = 0;
+  for (const w of items) {
+    const price = Number(w.price) || 0;
+    total += price;
+    lines.push('• <b>' + esc(w.title || 'Buyum') + '</b> — ' + fmtNum(price) + ' ' + cur
+      + (w.cat ? ' <i>(' + esc(w.cat) + ')</i>' : ''));
+    if (w.note) lines.push('   📝 ' + esc(w.note));
+  }
+  if (items.length > 1) lines.push('', '🧾 Jami: <b>' + fmtNum(total) + ' ' + cur + '</b>');
+
+  const balance = totalBalance(rec);
+  lines.push('', '💵 Qoldiq: <b>' + fmtNum(balance) + ' ' + cur + '</b>');
+  if (total > balance) {
+    lines.push('⚠️ Qoldiq yetmaydi — <b>' + fmtNum(total - balance) + ' ' + cur + '</b> kam.');
+  }
+  return lines.join('\n');
+}
+
 // ============ Bot buyruqlari ============
 
 const HELP = [
@@ -655,6 +698,7 @@ const HELP = [
   '/hisobot — oylik hisobotni yuborish',
   '/bekor — oxirgi kiritilganni o‘chirish',
   '/ertalab — ertalabki xabarni yoqish/o‘chirish',
+  '/eslatma — reja sanasi eslatmasini yoqish/o‘chirish',
   '/help — shu yordam',
 ].join('\n');
 
@@ -733,6 +777,14 @@ async function handleMessage(env, msg) {
       return sendMessage(token, chatId, rec.morning
         ? '☀️ Ertalabki xabar <b>yoqildi</b> — har kuni 08:00 da keladi.\n<i>Hozir koʻrish: /bugun</i>'
         : '🌙 Ertalabki xabar <b>oʻchirildi</b>.\n<i>Qayta yoqish: /ertalab</i>');
+    }
+
+    if (name === 'eslatma') {
+      rec.plans = rec.plans === false;
+      await saveRec(env, chatId, rec);
+      return sendMessage(token, chatId, rec.plans
+        ? '🛍️ Reja eslatmasi <b>yoqildi</b> — xarid sanasidan 1 kun oldin 09:00 da keladi.'
+        : '🔕 Reja eslatmasi <b>oʻchirildi</b>.\n<i>Qayta yoqish: /eslatma</i>');
     }
 
     if (name === 'balans') {
@@ -875,6 +927,7 @@ const BOT_COMMANDS = [
   { command: 'hisobot', description: 'Oylik hisobotni yuborish' },
   { command: 'bekor', description: 'Oxirgi kiritilganni oʻchirish' },
   { command: 'ertalab', description: 'Ertalabki xabarni yoqish/oʻchirish' },
+  { command: 'eslatma', description: 'Reja sanasi eslatmasini yoqish/oʻchirish' },
   { command: 'help', description: 'Yordam va namunalar' },
 ];
 
@@ -1030,14 +1083,21 @@ export default {
   },
 
   /**
-   * Cron. Ikki jadval bor (wrangler.toml):
+   * Cron. Uch jadval bor (wrangler.toml):
    *   0 5 1 * *  -> har oyning 1-sanasi 10:00 Toshkent: o'tgan oy hisoboti
    *   0 3 * * *  -> har kuni 08:00 Toshkent: kunning rejasi
+   *   0 4 * * *  -> har kuni 09:00 Toshkent: ertaga rejalashtirilgan xaridlar
    */
   async scheduled(event, env, ctx) {
-    const monthly = event.cron === MONTHLY_CRON
-      || (!event.cron && new Date(event.scheduledTime).getUTCDate() === 1);
-    ctx.waitUntil(monthly ? runMonthlyReport(env, event) : runMorningBrief(env, event));
+    // event.cron bo'lmasa (mahalliy `wrangler dev` chaqiruvi) soatiga qarab ajratamiz.
+    const hour = new Date(event.scheduledTime).getUTCHours();
+    const job = event.cron === MONTHLY_CRON
+      || (!event.cron && new Date(event.scheduledTime).getUTCDate() === 1 && hour === 5)
+      ? runMonthlyReport
+      : (event.cron === PLAN_CRON || (!event.cron && hour === 4))
+        ? runPlanReminders
+        : runMorningBrief;
+    ctx.waitUntil(job(env, event));
   },
 };
 
@@ -1091,8 +1151,25 @@ async function runMorningBrief(env, event) {
   });
 }
 
+/**
+ * Xaridlar rejasidagi sanadan bir kun oldingi eslatma (09:00 Toshkent).
+ * `plans === false` bo'lgan yozuvlar o'tkazib yuboriladi.
+ */
+async function runPlanReminders(env, event) {
+  const d = new Date(new Date(event.scheduledTime).getTime() + TZ_OFFSET_MS);
+
+  await eachRecord(env, async (rec) => {
+    if (rec.plans === false) return;
+    const text = buildPlanReminder(rec, rec.cur, d);
+    if (!text) return;
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, rec.chatId, text,
+      { reply_markup: miniAppKb(env.MINIAPP_URL) });
+  });
+}
+
 // Testlar uchun ochiladi (Worker runtime'i qo'shimcha eksportlarni e'tiborsiz qoldiradi)
 export {
   parseEntry, parseAmount, matchCat, buildReport, monthSummary, allTx, accountBalance, norm,
-  buildMorning, budgetSpent, daysFromToday, monthDays, weekStartTash, monthStartTash,
+  buildMorning, buildPlanReminder, budgetSpent, daysFromToday, monthDays, weekStartTash,
+  monthStartTash,
 };

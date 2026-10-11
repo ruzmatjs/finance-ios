@@ -135,6 +135,39 @@ console.log('\n— Oylik cron, ma’lumot yo‘q —');
   ok(sent.length === 0, 'bo‘sh oyga hisobot yuborilmaydi', 'keldi ' + sent.length);
 }
 
+// ---------- Reja eslatmasi cron'i ----------
+console.log('\n— Reja cron (0 4 * * *) —');
+{
+  const wish = [{ id: 'w1', title: 'iPhone 16', price: 1200000, cat: 'Texnika', status: 'planned', dueDate: '2026-10-12' }];
+  const withWish = (over) => fullRec({ state: { ...fullRec().state, wishlist: wish }, ...over });
+
+  // 11-oktabr 04:00 UTC = 09:00 Toshkent, reja sanasi 12-oktabr
+  const sent = await runCron('0 4 * * *', new Date(Date.UTC(2026, 9, 11, 4)), { 'u:42': withWish() });
+  ok(sent.length === 1, 'bitta eslatma yuborildi', 'keldi ' + sent.length);
+  ok(sent[0] && sent[0].text.includes('Ertaga rejadagi xarid') && sent[0].text.includes('iPhone 16'),
+    'reja eslatmasi yuborildi', sent[0] && sent[0].text.split('\n')[0]);
+  ok(sent[0] && !sent[0].text.includes('☀️'), 'ertalabki xabar yuborilmadi');
+
+  // Sana mos kelmasa
+  const none = await runCron('0 4 * * *', new Date(Date.UTC(2026, 9, 20, 4)), { 'u:42': withWish() });
+  ok(none.length === 0, 'sana yaqin boʻlmasa xabar ketmadi', 'keldi ' + none.length);
+
+  // /eslatma bilan o'chirilgan
+  const off = await runCron('0 4 * * *', new Date(Date.UTC(2026, 9, 11, 4)),
+    { 'u:42': withWish({ plans: false }) });
+  ok(off.length === 0, 'oʻchirilgan yozuvga eslatma ketmadi', 'keldi ' + off.length);
+
+  // Ertalabki xabar o'chirilgani reja eslatmasiga ta'sir qilmaydi
+  const indep = await runCron('0 4 * * *', new Date(Date.UTC(2026, 9, 11, 4)),
+    { 'u:42': withWish({ morning: false }) });
+  ok(indep.length === 1, '/ertalab oʻchirilgani reja eslatmasiga taʼsir qilmadi', 'keldi ' + indep.length);
+
+  // Kunlik cron reja eslatmasini yubormaydi
+  const morning = await runCron('0 3 * * *', new Date(Date.UTC(2026, 9, 11, 3)), { 'u:42': withWish() });
+  ok(morning.length === 1 && morning[0].text.includes('☀️'),
+    'kunlik cron faqat ertalabki xabarni yubordi', morning[0] && morning[0].text.split('\n')[0]);
+}
+
 // ---------- Bitta yozuvdagi xato qolganini to'xtatmasligi ----------
 console.log('\n— Xato izolyatsiyasi —');
 {

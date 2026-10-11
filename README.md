@@ -220,7 +220,7 @@ Summa `25000` / `25k` / `25 ming` / `1.5mln` koʻrinishida; soʻz tartibi muhim 
 Kalit soʻzlar jadvali Mini App'dagi `KW` bilan bir xil. Har yozuvdan keyin
 **✏️ Kategoriya** va **❌ Bekor** tugmalari chiqadi.
 
-Buyruqlar: `/bugun` · `/balans` · `/oy` · `/hisobot` · `/bekor` · `/ertalab` · `/help`
+Buyruqlar: `/bugun` · `/balans` · `/oy` · `/hisobot` · `/bekor` · `/ertalab` · `/eslatma` · `/help`
 
 Bot state'ni oʻzgartirmaydi — yozuvlarni KV'dagi **append-only** `pending[]` ga qoʻshadi.
 Mini App `/pull` bilan oladi, mavjud `mergeStates()` orqali birlashtiradi va
@@ -252,6 +252,22 @@ sarflanganda (🟡) va oshib ketganda (🔴) ogohlantiradi; yaqinlashgan
 takrorlanuvchi toʻlovlar va qarz muddatlari ham shu xabarda.
 
 `/bugun` — istalgan paytda koʻrish. `/ertalab` — yoqish/oʻchirish.
+
+### Reja sanasi eslatmasi
+
+**Rejalar** boʻlimida har bir xaridga ixtiyoriy sana qoʻyish mumkin. Shu sanaga bir kun
+qolganda ertalab 09:00 (Toshkent) da lichkaga eslatma keladi:
+
+```
+🛍️ Ertaga rejadagi xarid
+
+• iPhone 16 — 1 200 000 soʻm (Texnika)
+   📝 Doʻkon: Mediapark
+
+💵 Qoldiq: 2 000 000 soʻm
+```
+
+Jami summa qoldiqdan oshsa ogohlantiradi. `/eslatma` — yoqish/oʻchirish.
 
 ### Oylik hisobot
 
