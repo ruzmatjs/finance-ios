@@ -6,6 +6,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<!-- Har gal docs/index.html o'zgarganda shu sanani yangilang: ilova eski kesh ochilganini shundan biladi -->
+<meta name="app-version" content="2026-10-11">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -2107,7 +2109,69 @@ function viewSettings(){
     <button class="btn ghost" style="margin-top:10px" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
   </div>
-  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0</div>`;}
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0${APP_VERSION?' · '+esc(APP_VERSION):''}</div>`;}
+
+// ============ VERSIYA TEKSHIRUVI (Telegram WebView keshi) ============
+// Telegram mobil mijozi Mini App'ni keshlaydi - yangi deploy qilingan kod
+// telefonda bir necha kun eski holicha ochilib yurishi mumkin. Shuning uchun
+// serverdagi faylning birinchi kilobaytini olib (HTTP Range - butun fayl emas)
+// <meta name="app-version"> ni ochilgan versiya bilan solishtiramiz.
+const APP_VERSION = (document.querySelector('meta[name="app-version"]') || {}).content || '';
+let _updDismissed = false;
+let _updLastCheck = 0;
+
+function appVersionOf(html){
+  const m = String(html).match(/name=["']app-version["'][^>]*content=["']([^"']+)["']/i);
+  return m ? m[1] : '';
+}
+
+async function checkAppUpdate(){
+  if(_updDismissed || !APP_VERSION) return;
+  if(Date.now() - _updLastCheck < 30 * 60 * 1000) return;
+  _updLastCheck = Date.now();
+  try {
+    const res = await fetch(location.pathname + '?cb=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Range': 'bytes=0-1600' }
+    });
+    if(!res.ok && res.status !== 206) return;
+    const live = appVersionOf(await res.text());
+    if(live && live !== APP_VERSION) showUpdateBar(live);
+  } catch(e){ /* oflayn - keyingi safar */ }
+}
+
+function showUpdateBar(v){
+  if(document.getElementById('updBar')) return;
+  const bar = document.createElement('div');
+  bar.id = 'updBar';
+  bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:86px;z-index:70;background:var(--accent);'
+    + 'color:#fff;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;'
+    + 'box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:13px';
+  bar.innerHTML = `<div style="flex:1;line-height:1.35"><b>Yangi versiya tayyor</b>
+      <div style="opacity:.85;font-size:11.5px">${esc(APP_VERSION)} → ${esc(v)}</div></div>
+    <button onclick="applyAppUpdate('${esc(v)}')" style="background:#fff;color:var(--accent);border:none;
+      border-radius:10px;padding:7px 14px;font-weight:700;font-size:12.5px;cursor:pointer">Yangilash</button>
+    <span onclick="dismissUpdateBar()" style="cursor:pointer;opacity:.8;font-size:16px;padding:0 2px">✕</span>`;
+  document.body.appendChild(bar);
+  haptic('light');
+}
+
+function dismissUpdateBar(){
+  _updDismissed = true;
+  const bar = document.getElementById('updBar');
+  if(bar) bar.remove();
+}
+
+function applyAppUpdate(v){
+  haptic('medium');
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', v || String(Date.now()));
+    window.location.replace(url.toString());
+  } catch(e){
+    window.location.reload();
+  }
+}
 
 function forceAppReload(){
   haptic('medium');
@@ -3331,10 +3395,13 @@ async function syncWithCloud(silent = true){
   }
 }
 
-window.addEventListener('focus', () => syncWithCloud(true));
+window.addEventListener('focus', () => { syncWithCloud(true); checkAppUpdate(); });
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible') syncWithCloud(true);
+  if(document.visibilityState === 'visible'){ syncWithCloud(true); checkAppUpdate(); }
 });
+
+// Ilova ochilgach bir marta - eski kesh ochilgan boʻlsa yangilanish taklif qilinadi
+setTimeout(checkAppUpdate, 4000);
 setInterval(() => {
   if(document.visibilityState === 'visible') syncWithCloud(true);
 }, 25000);

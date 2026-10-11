@@ -198,6 +198,21 @@ Tekshirish: **Actions → "Oy oxiri baholash eslatmasi" → Run workflow** → `
 > Xabar matni umumiy — nechta xarid baholanmaganini bot bilmaydi, chunki maʼlumot
 > Telegram CloudStorage'da (faqat Mini App ichida) saqlanadi.
 
+## Mini App versiyasi va Telegram keshi
+
+Telegram mobil mijozi Mini App'ni keshlaydi — GitHub Pages'ga yangi kod chiqsa ham telefonda
+bir necha kun **eski versiya** ochilib yurishi mumkin (desktop Telegram esa yangisini oladi).
+Shu sababli ilova ochilgach serverdagi faylning birinchi kilobaytini olib (HTTP `Range`,
+butun fayl emas) oʻzining versiyasini tekshiradi va eskiligi bilinsa pastda
+**“Yangi versiya tayyor → Yangilash”** tugmasini chiqaradi. Tugma `?v=<versiya>` bilan
+qayta yuklaydi — bu keshni chetlab oʻtadi.
+
+> ⚠️ **`docs/index.html` ni oʻzgartirgach `<meta name="app-version">` sanasini yangilang** —
+> ilova eski kesh ochilganini aynan shundan biladi.
+
+Qoʻlda yangilash har doim mumkin: **Sozlamalar → 🔄 Ilovani yangilash (Keshni tozalash)**.
+Ochilgan versiya sana koʻrinishida Sozlamalar sahifasining eng pastida yoziladi.
+
 ## Oylarni taqqoslash (Mini App)
 
 **Hisobot → Oylarni taqqoslash** sahifasi tanlangan oyni undan oldingi oy bilan yonma-yon
