@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Har gal docs/index.html o'zgarganda shu sanani yangilang: ilova eski kesh ochilganini shundan biladi -->
-<meta name="app-version" content="2026-10-11">
+<meta name="app-version" content="2026-10-11b">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -1344,7 +1344,7 @@ function viewReport(){
   </div>`;
 
   // Oylar taqqoslash sahifasiga oʻtish
-  html += `<div class="card" role="button" tabindex="0" onclick="nav('compare')" style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px">
+  html += `<div class="card" role="button" tabindex="0" onclick="nav('compare')" style="padding:12px 14px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15);display:flex;align-items:center;gap:10px">
     <div class="cic" style="width:38px;height:38px;font-size:18px;background:rgba(94,92,230,0.14)">📊</div>
     <div style="flex:1">
       <div style="font-weight:700;font-size:14px">Oylarni taqqoslash</div>
@@ -1754,7 +1754,7 @@ function viewStats(){
     `<div class="grid2">${stat('Oʼrtacha kunlik',compact(avgD),'📅','var(--expense)')}${stat('Oʼrtacha oylik',compact(avgD*30),'🗓️','var(--warn)')}
       ${stat('Eng katta xarajat',compact(hiE),'⬆️','var(--expense)')}${stat('Eng katta daromad',compact(hiI),'⬇️','var(--income)')}</div>
     ${most?`<div class="card"><div class="between"><span>⭐ Eng koʼp ishlatilgan</span><b>${most[0]} (${most[1]})</b></div></div>`:''}
-    <div class="card"><div class="between"><h2>Oylar taqqoslash</h2><span class="link" onclick="nav('compare')" style="font-size:12px">Bu oy vs oʻtgan oy ›</span></div><div class="bars" style="height:130px">${mc.map(x=>`<div style="flex:1;display:flex;gap:2px;align-items:flex-end"><div style="flex:1;background:var(--income);border-radius:4px 4px 0 0;height:${Math.max(x.inc/mmax*100,1)}%"></div><div style="flex:1;background:var(--expense);border-radius:4px 4px 0 0;height:${Math.max(x.exp/mmax*100,1)}%"></div></div>`).join('')}</div>
+    <div class="card" role="button" tabindex="0" onclick="nav('compare')" style="cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(94,92,230,0.15)"><div class="between"><h2>Oylar taqqoslash</h2><span class="link" style="font-size:12px">Bu oy vs oʻtgan oy ›</span></div><div class="bars" style="height:130px">${mc.map(x=>`<div style="flex:1;display:flex;gap:2px;align-items:flex-end"><div style="flex:1;background:var(--income);border-radius:4px 4px 0 0;height:${Math.max(x.inc/mmax*100,1)}%"></div><div style="flex:1;background:var(--expense);border-radius:4px 4px 0 0;height:${Math.max(x.exp/mmax*100,1)}%"></div></div>`).join('')}</div>
       <div class="row" style="gap:6px">${mc.map(x=>`<div class="bl" style="flex:1">${x.m.toLocaleDateString('ru-RU',{month:'short'})}</div>`).join('')}</div></div>
     <div class="card"><h2>Sarf issiqlik xaritasi</h2><div class="heat" style="margin-top:10px">${heat}</div><div class="hint">Toʼq rang — koʼproq sarf</div></div>`;}
 // ============ OYLAR TAQQOSLASH ============
@@ -2109,7 +2109,7 @@ function viewSettings(){
     <button class="btn ghost" style="margin-top:10px" onclick="exportCSV()">📄 CSV eksport</button>
     <button class="btn danger" style="margin-top:10px" onclick="clearAll()">🗑 Hammasini oʼchirish</button>
   </div>
-  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0${APP_VERSION?' · '+esc(APP_VERSION):''}</div>`;}
+  <div class="hint" style="text-align:center">Maʼlumot shu qurilmada saqlanadi · Finance v2.3.0<br><b style="color:var(--text2)">Versiya: ${esc(APP_VERSION||'nomaʼlum (eski)')}</b></div>`;}
 
 // ============ VERSIYA TEKSHIRUVI (Telegram WebView keshi) ============
 // Telegram mobil mijozi Mini App'ni keshlaydi - yangi deploy qilingan kod
