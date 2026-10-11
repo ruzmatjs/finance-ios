@@ -24,7 +24,7 @@ struct TelegramSettingsView: View {
                     HStack {
                         Label("@ruzmat_finance_bot", systemImage: "paperplane.circle.fill")
                             .font(.headline)
-                            .foregroundStyle(Theme.Colors.tint)
+                            .foregroundStyle(Theme.Colors.accent)
                         Spacer()
                         Image(systemName: "arrow.up.right")
                             .font(.caption)
@@ -263,7 +263,7 @@ private struct StepRow: View {
                 .font(.caption.bold())
                 .foregroundStyle(.white)
                 .frame(width: 18, height: 18)
-                .background(Circle().fill(Theme.Colors.tint))
+                .background(Circle().fill(Theme.Colors.accent))
 
             Text(text)
                 .font(.caption)

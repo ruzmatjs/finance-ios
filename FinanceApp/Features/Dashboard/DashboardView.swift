@@ -32,6 +32,7 @@ struct DashboardView: View {
                         isHidden: settings.hideBalance,
                         onToggleHidden: {
                             settings.hideBalance.toggle()
+                            container?.haptics.impact(.light)
                         }
                     )
 

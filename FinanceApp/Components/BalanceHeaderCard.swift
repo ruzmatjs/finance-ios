@@ -20,7 +20,6 @@ struct BalanceHeaderCard: View {
                 if let onToggle = onToggleHidden {
                     Button {
                         onToggle()
-                        Haptics.light()
                     } label: {
                         Image(systemName: isHidden ? "eye.slash.fill" : "eye.fill")
                             .font(.subheadline)

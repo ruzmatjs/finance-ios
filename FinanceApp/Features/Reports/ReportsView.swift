@@ -18,6 +18,7 @@ enum ReportTypeFilter: String, CaseIterable, Identifiable {
 /// Hisobotlar — davr va sana tanlash, AI tahlil, naqd/yirik bitimlar filtri, kategoriya taqsimoti.
 struct ReportsView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(\.container) private var container
     @Query private var transactions: [Transaction]
     @Query private var allCategories: [Category]
 
@@ -361,7 +362,7 @@ struct ReportsView: View {
                 if !selectedCategories.isEmpty {
                     Button("Barchasi (\(selectedCategories.count))") {
                         withAnimation { selectedCategories.removeAll() }
-                        Haptics.light()
+                        container?.haptics.impact(.light)
                     }
                     .font(.caption.bold())
                     .foregroundStyle(Theme.Colors.accent)
@@ -376,7 +377,7 @@ struct ReportsView: View {
                 HStack(spacing: 8) {
                     Button {
                         withAnimation { selectedCategories.removeAll() }
-                        Haptics.light()
+                        container?.haptics.impact(.light)
                     } label: {
                         Text("Hammasi")
                             .font(.caption.weight(.semibold))
@@ -398,7 +399,7 @@ struct ReportsView: View {
                                     selectedCategories.insert(cat.name)
                                 }
                             }
-                            Haptics.light()
+                            container?.haptics.impact(.light)
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: cat.symbol)
