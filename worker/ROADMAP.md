@@ -28,27 +28,44 @@ o'zgarish: do'konda turib ilovani ochishga erinish sabab ko'p narsa yozilmay qol
 
 ---
 
-## 2-bosqich — Ertalabki bitta xabar
+## ✅ 2-bosqich — Ertalabki xabar (bajarildi)
 
-Har kuni soat 8:00 da kunning rejasi. `state` ichida hamma ma'lumot (`budgets`,
-`recurring`, `debts`, `goals`) bor, lekin hozir ishlatilmaydi.
+Har kuni 08:00 (Toshkent) da kunning rejasi: qoldiq, oylik sarf, bugun sarflash mumkin
+bo'lgan summa, byudjet ogohlantirishlari, yaqinlashgan to'lovlar va qarz muddatlari.
 
 ```
-☀️ 11-oktabr
+☀️ 11-oktabr, yakshanba
 
-💵 Qoldiq: 3 450 000
-📊 Oyning 11-kuni — byudjetdan 62% sarflandi
-✅ Bugun sarflash mumkin: ~85 000
+💵 Qoldiq: 8 355 000 so'm
+📉 Oyda sarflandi: 2 345 000 so'm (11/31 kun)
+📊 Byudjetdan 59% sarflandi
+✅ Bugun sarflash mumkin: ~78 000 so'm (21 kunga 1 655 000)
 
-⚠️ Ertaga: Ijara 2 000 000
-🤝 Jasurga qarz muddati 3 kundan keyin
+🟡 Ovqat — 89% (95 000 qoldi)
+
+⚠️ Bugun: Internet — −60 000 so'm
+📅 Ertaga: Ijara — −2 000 000 so'm
+
+🤝 Jasur — 500 000 so'm · 2 kundan keyin
 ```
 
-**Nega:** "bugun qancha sarflasam bo'ladi" — oddiy hisob (qolgan byudjet ÷ qolgan kun),
-lekin kundalik qaror qabul qilishga eng ko'p yordam beradigan raqam.
+- Ikkinchi cron: `0 3 * * *`; `scheduled()` `event.cron` bo'yicha ajratadi
+- `budgetSpent()` va davr boshlanishi hisoblari ilovadan Worker'ga ko'chirildi
+- **Bugun sarflash mumkin** = qolgan byudjet ÷ oy oxirigacha qolgan kun, minggacha
+  pastga yumaloqlangan. Byudjet bo'lmasa — kunlik o'rtacha va oy oxiri prognozi
+- Qoplanadigan byudjetlar muammosi: hammasini qamrab oluvchi byudjet (`catIds` bo'sh)
+  bo'lsa faqat shu olinadi, aks holda kategoriya byudjetlari bilan ikki marta
+  hisoblanib ketardi
+- Byudjet ogohlantirishi 80% (🟡) va 100% (🔴) da
+- `/bugun` — istalgan paytda ko'rish · `/ertalab` — yoqish/o'chirish (KV'da `morning`)
+- **Vaqt mintaqasi:** ilova sanalarni qurilmaning mahalliy vaqtidan ISO'ga aylantirib
+  saqlaydi, shuning uchun Worker'da taqqoslashdan oldin Toshkentga suriladi (`toTash`).
+  Aks holda 00:00–05:00 orasidagi yozuvlar oldingi kunga tushib ketardi
+- 51 ta test qo'shildi (ertalabki xabar + cron dispatch; KV va Telegram mock bilan)
 
-**Qanday:** `wrangler.toml` ga ikkinchi cron (`0 3 * * *` = 08:00 Toshkent).
-`budgetSpent()` logikasini ilovadan Worker'ga ko'chirish kerak.
+**Yo'l-yo'lakay tuzatildi:** oylik hisobotda `state` bo'lsa saqlangan jamlanma butunlay
+e'tiborsiz qolar edi — ilovada eski tranzaksiyalar yo'qolgan bo'lsa hisobot jim
+ketmasdi. Endi jonli hisob bo'sh chiqsa saqlangan jamlanmaga qaytadi.
 
 ---
 
@@ -73,9 +90,9 @@ Har biri uchun yoqib-o'chirish kerak: `state.notify = {budget:true, daily:false,
 
 | Eslatma | Manba | Izoh |
 |---|---|---|
-| **Byudjet oshdi** | `state.budgets` | 80% va 100% da. Oyning 20-kunida bilish, oy oxirida bilishdan ancha foydali |
+| ~~**Byudjet oshdi**~~ | `state.budgets` | ✅ 2-bosqichda ertalabki xabar ichida bajarildi |
 | **Takrorlanuvchi to'lov** | `state.recurring` | Muddat kuni `Ijara 2 000 000 to'landimi?` → ✅ Ha / ⏭ Keyinroq |
-| **Qarz muddati** | `state.debts` | Muddatdan 3 kun oldin |
+| ~~**Qarz muddati**~~ | `state.debts` | ✅ 2-bosqichda ertalabki xabar ichida bajarildi |
 | **Kechqurun eslatma** | `state.tx` | Faqat bugun hech narsa kiritilmagan bo'lsa |
 | **Haftalik jamlanma** | `state.tx` | Yakshanba kechasi |
 | **Maqsad bosqichi** | `state.goals` | 25/50/75/100% ga yetganda |
@@ -123,7 +140,7 @@ Hozir hisobot 3900 belgida kesiladi (`buildReport`) — bir nechta xabarga bo'li
 
 - `/qidir taksi` — oxirgi 10 ta taksi xarajati, jami summa bilan
 - `/qarz` — aktiv qarzlar ro'yxati
-- `/bugun`, `/hafta` — qisqa jamlanma
+- `/hafta` — haftalik qisqa jamlanma (`/bugun` 2-bosqichda bajarildi)
 - `inline_query` — boshqa chatda `@bot balans` yozib ulashish
 
 **Texnik eslatma:** tranzaksiya darajasida tez-tez so'rov kerak bo'lsa (`/qidir`,
@@ -160,7 +177,7 @@ savol tug'ilmasligi uchun yozib qo'yilgan:
 ## Tavsiya etilgan tartib
 
 1. ✅ ~~Webhook + matn orqali kirim~~ — bajarildi
-2. **Ertalabki xabar** — eng ko'p kundalik foyda
+2. ✅ ~~Ertalabki xabar~~ — bajarildi
 3. **Bank SMS forward** — kirishni yana tezlashtiradi
 4. **Byudjet + takrorlanuvchi to'lov eslatmalari** → GitHub Actions'ni o'chirish
 5. **Zaxira va grafik**

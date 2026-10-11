@@ -2,9 +2,11 @@ name = "finance-report"
 main = "src/index.js"
 compatibility_date = "2024-11-01"
 
-# Oylik hisobot: har oyning 1-sanasi 05:00 UTC = 10:00 Toshkent
+# Cron jadvallari (Toshkent = UTC+5):
+#   0 5 1 * *  -> har oyning 1-sanasi 10:00 - o'tgan oy hisoboti
+#   0 3 * * *  -> har kuni 08:00 - kunning rejasi (/ertalab bilan o'chiriladi)
 [triggers]
-crons = ["0 5 1 * *"]
+crons = ["0 5 1 * *", "0 3 * * *"]
 
 # Foydalanuvchilarning oylik jamlanmalari shu KV'da saqlanadi.
 # ID'ni `wrangler kv namespace create REPORTS` buyrug'i beradi - shu yerga qo'ying.

@@ -43,7 +43,9 @@ Har bir yozuvdan keyin ikki tugma chiqadi: **✏️ Kategoriya** (oʻzgartirish)
 | `/balans` | Hisoblar boʻyicha qoldiq va jami |
 | `/oy` | Shu oy jamlanmasi (1-sanani kutmasdan) |
 | `/hisobot` | Shu oy hisobotini yuborish |
+| `/bugun` | Kunning rejasi (ertalabki xabarning oʻzi) |
 | `/bekor` | Oxirgi kiritilganni oʻchirish |
+| `/ertalab` | Ertalabki xabarni yoqish/oʻchirish |
 | `/help` | Yordam va namunalar |
 
 ---
@@ -140,7 +142,49 @@ Worker manzilini joylashtirasiz (birinchi ochilishda avtomatik qoʻyiladi).
 
 ---
 
-## 4. Oylik hisobot
+## 4. Ertalabki xabar
+
+Har kuni **08:00** (Toshkent) da kunning rejasi keladi:
+
+```
+☀️ 11-oktabr, yakshanba
+
+💵 Qoldiq: 8 355 000 soʻm
+📉 Oyda sarflandi: 2 345 000 soʻm (11/31 kun)
+📊 Byudjetdan 59% sarflandi
+✅ Bugun sarflash mumkin: ~78 000 soʻm (21 kunga 1 655 000)
+
+🟡 Ovqat — 89% (95 000 qoldi)
+
+⚠️ Bugun: Internet — −60 000 soʻm
+📅 Ertaga: Ijara — −2 000 000 soʻm
+
+🤝 Jasur — 500 000 soʻm · 2 kundan keyin
+```
+
+Nima koʻrsatiladi:
+
+| Qator | Qachon chiqadi |
+|---|---|
+| Qoldiq va oylik sarf | Doim |
+| **Bugun sarflash mumkin** | Oylik byudjet boʻlsa: qolgan summa ÷ qolgan kun |
+| Kunlik oʻrtacha va prognoz | Byudjet yoʻq boʻlsa |
+| Byudjet ogohlantirishi | Byudjetning 80% i sarflanganda (🟡), oshib ketganda (🔴) |
+| Takrorlanuvchi toʻlov | Bugun, ertaga yoki kechikkan boʻlsa |
+| Qarz muddati | 3 kun ichida yoki kechikkan boʻlsa |
+
+**Bugun sarflash mumkin** — bu oddiy hisob (qolgan byudjet ÷ oy oxirigacha qolgan kun),
+lekin kundalik qaror qabul qilishga eng koʻp yordam beradigan raqam. Minggacha pastga
+yumaloqlanadi.
+
+Bir nechta byudjet boʻlsa, hammasini qamrab oluvchisi (kategoriyasi tanlanmagan) olinadi —
+aks holda kategoriya byudjetlari bilan ikki marta hisoblanib ketardi. Faqat kategoriya
+byudjetlari boʻlsa ular qoʻshiladi.
+
+**Oʻchirish:** `/ertalab`. Qayta yoqish ham shu buyruq. Holat KV'da (`morning`) saqlanadi,
+standart holatda yoqilgan. Istalgan paytda koʻrish: `/bugun`.
+
+## 5. Oylik hisobot
 
 Har oyning **1-sanasi 10:00** (Toshkent) da oʻtgan oy hisoboti avtomatik keladi:
 
@@ -164,7 +208,7 @@ Jami 4 ta tranzaksiya
 
 ---
 
-## 5. Xavfsizlik
+## 6. Xavfsizlik
 
 | Nima | Qanday himoyalangan |
 |---|---|
@@ -179,7 +223,7 @@ oqishidan qatʼi nazar solishtiriladi.
 
 ---
 
-## 6. Endpointlar
+## 7. Endpointlar
 
 | Metod | Manzil | Vazifasi |
 |---|---|---|
@@ -190,23 +234,33 @@ oqishidan qatʼi nazar solishtiriladi.
 | `POST` | `/pull` | State + bot kiritgan `pending` yozuvlarni qaytaradi |
 | `POST` | `/report` | Hisobotni darhol yuboradi (`{month: "2026-09"}`) |
 
-Cron (`0 5 1 * *`) — har oyning 1-sanasida oʻtgan oy hisobotini yuboradi.
+Cron jadvallari:
+
+| Jadval | Toshkent vaqti | Nima qiladi |
+|---|---|---|
+| `0 5 1 * *` | Har oyning 1-sanasi 10:00 | Oʻtgan oy hisoboti |
+| `0 3 * * *` | Har kuni 08:00 | Kunning rejasi (`/ertalab` bilan oʻchiriladi) |
 
 ---
 
-## 7. Keyingi bosqichlar
+## 8. Keyingi bosqichlar
 
 Rejalashtirilgan funksiyalar va ataylab qilinmayotgan narsalar:
 [`ROADMAP.md`](ROADMAP.md).
 
-## 8. Testlar va loglar
+## 9. Testlar va loglar
 
 ```bash
 npm test
 ```
 
-Matn tahlili (summa formatlari, soʻz tartibi, qoʻshimchalar, hisob tanlash) va
-balans hisobini tekshiradi — 38 ta holat.
+Uchta toʻplam, jami **89 ta holat**:
+
+| Fayl | Nimani tekshiradi |
+|---|---|
+| `test/parse.test.mjs` | Summa formatlari, soʻz tartibi, qoʻshimchalar, hisob tanlash, balans |
+| `test/morning.test.mjs` | Ertalabki xabar: vaqt mintaqasi, byudjet hisobi, toʻlov va qarz muddatlari |
+| `test/cron.test.mjs` | Cron dispatch — KV va Telegram API mock qilinadi, tashqi soʻrov ketmaydi |
 
 ```bash
 npx wrangler tail

@@ -220,11 +220,38 @@ Summa `25000` / `25k` / `25 ming` / `1.5mln` koʻrinishida; soʻz tartibi muhim 
 Kalit soʻzlar jadvali Mini App'dagi `KW` bilan bir xil. Har yozuvdan keyin
 **✏️ Kategoriya** va **❌ Bekor** tugmalari chiqadi.
 
-Buyruqlar: `/balans` · `/oy` · `/hisobot` · `/bekor` · `/help`
+Buyruqlar: `/bugun` · `/balans` · `/oy` · `/hisobot` · `/bekor` · `/ertalab` · `/help`
 
 Bot state'ni oʻzgartirmaydi — yozuvlarni KV'dagi **append-only** `pending[]` ga qoʻshadi.
 Mini App `/pull` bilan oladi, mavjud `mergeStates()` orqali birlashtiradi va
 `ackPending` bilan tasdiqlaydi. Ilova ochiq boʻlsa yozuv ~25 soniyada oʻzi koʻrinadi.
+
+### Ertalabki xabar
+
+Har kuni 08:00 (Toshkent) da kunning rejasi keladi:
+
+```
+☀️ 11-oktabr, yakshanba
+
+💵 Qoldiq: 8 355 000 soʻm
+📉 Oyda sarflandi: 2 345 000 soʻm (11/31 kun)
+📊 Byudjetdan 59% sarflandi
+✅ Bugun sarflash mumkin: ~78 000 soʻm (21 kunga 1 655 000)
+
+🟡 Ovqat — 89% (95 000 qoldi)
+
+⚠️ Bugun: Internet — −60 000 soʻm
+📅 Ertaga: Ijara — −2 000 000 soʻm
+
+🤝 Jasur — 500 000 soʻm · 2 kundan keyin
+```
+
+**Bugun sarflash mumkin** — qolgan byudjet ÷ oy oxirigacha qolgan kun. Byudjet
+boʻlmasa kunlik oʻrtacha va oy oxiri prognozi koʻrsatiladi. Byudjetning 80% i
+sarflanganda (🟡) va oshib ketganda (🔴) ogohlantiradi; yaqinlashgan
+takrorlanuvchi toʻlovlar va qarz muddatlari ham shu xabarda.
+
+`/bugun` — istalgan paytda koʻrish. `/ertalab` — yoqish/oʻchirish.
 
 ### Oylik hisobot
 

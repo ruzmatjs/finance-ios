@@ -26,6 +26,9 @@ const MONTHS = ['', 'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
 /** Toshkent vaqti UTC+5 (yoz/qish vaqti yo'q). */
 const TZ_OFFSET_MS = 5 * 3600 * 1000;
 
+/** Oylik hisobot jadvali (wrangler.toml dagi bilan bir xil bo'lishi kerak). */
+const MONTHLY_CRON = '0 5 1 * *';
+
 const enc = new TextEncoder();
 
 async function hmac(keyBytes, msg) {
@@ -76,10 +79,49 @@ function monthTitle(mk) {
   return MONTHS[parseInt(m, 10)] + ' ' + y;
 }
 
-/** Toshkent vaqtidagi "hozir". */
+/**
+ * Toshkent vaqtidagi "hozir". Qaytgan Date'ning UTC getter'lari (getUTCDate va h.k.)
+ * Toshkent taqvimidagi qiymatni beradi - quyidagi hamma hisob shu usulda ishlaydi.
+ */
 const nowTashkent = () => new Date(Date.now() + TZ_OFFSET_MS);
 
 const monthKeyOf = (d) => d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+
+const WEEKDAYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
+
+// Toshkent taqvimidagi davr boshlanishi, UTC vaqtida (tx.date UTC'da saqlanadi)
+const dayStartTash = (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - TZ_OFFSET_MS);
+const monthStartTash = (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) - TZ_OFFSET_MS);
+const yearStartTash = (d) => new Date(Date.UTC(d.getUTCFullYear(), 0, 1) - TZ_OFFSET_MS);
+/** Hafta dushanbadan boshlanadi (ilovadagi weekStart bilan bir xil). */
+const weekStartTash = (d) => new Date(dayStartTash(d).getTime() - ((d.getUTCDay() + 6) % 7) * 86400000);
+
+const periodStartTash = (period, d) => period === 'weekly' ? weekStartTash(d)
+  : period === 'yearly' ? yearStartTash(d) : monthStartTash(d);
+
+/** Oydagi kunlar soni va bugundan oy oxirigacha qolgan kun (bugun ham kiradi). */
+function monthDays(d) {
+  const total = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return { total, day: d.getUTCDate(), left: total - d.getUTCDate() + 1 };
+}
+
+/**
+ * Sanani Toshkent taqvimiga keltiradi (ilova sanalarni qurilmaning mahalliy
+ * vaqtidan ISO'ga aylantirib saqlaydi, shuning uchun taqqoslashdan oldin surish kerak).
+ */
+function toTash(iso) {
+  const t = new Date(iso);
+  return isNaN(t) ? null : new Date(t.getTime() + TZ_OFFSET_MS);
+}
+
+/** Toshkent kunlari bo'yicha farq: 0 = bugun, 1 = ertaga, -1 = kecha. */
+function daysFromToday(iso, d) {
+  const t = toTash(iso);
+  if (!t) return null;
+  const target = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate());
+  const today = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  return Math.round((target - today) / 86400000);
+}
 
 // ============ KV yozuvi ============
 
@@ -452,8 +494,8 @@ function monthSummary(rec, mk) {
   const byInc = {}, byExp = {};
   let count = 0;
   for (const t of allTx(rec)) {
-    const d = new Date(t.date || 0);
-    if (isNaN(d) || monthKeyOf(d) !== mk) continue;
+    const d = toTash(t.date || 0);
+    if (!d || monthKeyOf(d) !== mk) continue;
     count++;
     const a = parseFloat(t.amount) || 0;
     const c = t.cat || 'Boshqa';
@@ -462,6 +504,127 @@ function monthSummary(rec, mk) {
   }
   const srt = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]);
   return { income, expense, cats: srt(byExp), incCats: srt(byInc), txCount: count };
+}
+
+// ============ Ertalabki xabar (kunning rejasi) ============
+
+/** Byudjet davri boshidan beri sarflangan summa (ilovadagi budgetSpent bilan bir xil). */
+function budgetSpent(rec, b, d) {
+  const st = periodStartTash(b.period, d).getTime();
+  const set = new Set(b.catIds || []);
+  return allTx(rec)
+    .filter((t) => t.type === 'expense' && new Date(t.date).getTime() >= st
+      && (set.size === 0 || set.has(t.cat)))
+    .reduce((s, t) => s + (t.amount || 0), 0);
+}
+
+/** Berilgan vaqt oralig'idagi xarajat yig'indisi. */
+const spentSince = (rec, from) => allTx(rec)
+  .filter((t) => t.type === 'expense' && new Date(t.date).getTime() >= from)
+  .reduce((s, t) => s + (t.amount || 0), 0);
+
+/**
+ * Kunning rejasi: qoldiq, oy holati, bugun sarflash mumkin bo'lgan summa,
+ * yaqinlashgan takrorlanuvchi to'lovlar va qarz muddatlari.
+ * @param d Toshkent vaqtidagi "hozir" (test uchun beriladi)
+ * @returns {string|null} xabar matni, yuborishga arzimasa null
+ */
+function buildMorning(rec, cur, d) {
+  d = d || nowTashkent();
+  cur = cur || 'soʻm';
+  const st = rec.state;
+  if (!st) return null;
+
+  const { day, total, left } = monthDays(d);
+  const lines = [
+    '☀️ <b>' + day + '-' + MONTHS[d.getUTCMonth() + 1].toLowerCase() + '</b>, ' + WEEKDAYS[d.getUTCDay()],
+    '',
+    '💵 Qoldiq: <b>' + fmtNum(totalBalance(rec)) + ' ' + cur + '</b>',
+  ];
+
+  // --- Oy holati ---
+  const monthSpent = spentSince(rec, monthStartTash(d).getTime());
+  lines.push('📉 Oyda sarflandi: <b>' + fmtNum(monthSpent) + ' ' + cur + '</b>'
+    + ' <i>(' + day + '/' + total + ' kun)</i>');
+
+  // --- Bugun sarflash mumkin bo'lgan summa ---
+  // Oylik byudjetlar bo'lsa shundan, aks holda o'rtacha sarfdan prognoz.
+  // Hamma kategoriyani qamrab oluvchi byudjet (catIds bo'sh) bo'lsa faqat shuni
+  // olamiz - aks holda u kategoriya byudjetlari bilan ikki marta hisoblanadi.
+  const monthly = (st.budgets || []).filter((b) => b && b.period === 'monthly' && b.limit > 0);
+  const overall = monthly.filter((b) => !(b.catIds || []).length)
+    .sort((a, b) => b.limit - a.limit)[0];
+  const pool = overall ? [overall] : monthly;
+  if (pool.length) {
+    const limit = pool.reduce((s, b) => s + b.limit, 0);
+    const spent = pool.reduce((s, b) => s + budgetSpent(rec, b, d), 0);
+    const rem = limit - spent;
+    const pct = Math.round((spent / limit) * 100);
+    lines.push('📊 Byudjetdan <b>' + pct + '%</b> sarflandi');
+    if (rem > 0) {
+      // Minggacha pastga yumaloqlaymiz - "~83 333" o'rniga "~83 000"
+      const perDay = Math.floor(rem / left / 1000) * 1000;
+      lines.push('✅ Bugun sarflash mumkin: <b>~' + fmtNum(perDay) + ' ' + cur + '</b>'
+        + ' <i>(' + left + ' kunga ' + fmtNum(rem) + ')</i>');
+    } else {
+      lines.push('🔴 Byudjet tugadi — <b>' + fmtNum(-rem) + ' ' + cur + '</b> oshib ketdi');
+    }
+  } else if (day > 1) {
+    const perDay = monthSpent / (day - 1 || 1);
+    lines.push('📈 Kunlik oʻrtacha: <b>' + fmtNum(perDay) + ' ' + cur + '</b>'
+      + ' · oy oxiriga prognoz <b>' + fmtNum(perDay * total) + ' ' + cur + '</b>');
+  }
+
+  // --- Alohida byudjetlar: faqat 80% dan oshganlari ---
+  const hot = (st.budgets || [])
+    .filter((b) => b && b.limit > 0)
+    .map((b) => ({ b, sp: budgetSpent(rec, b, d) }))
+    .filter(({ b, sp }) => sp / b.limit >= 0.8)
+    .sort((x, y) => (y.sp / y.b.limit) - (x.sp / x.b.limit));
+  if (hot.length) {
+    lines.push('');
+    for (const { b, sp } of hot) {
+      const pct = Math.round((sp / b.limit) * 100);
+      lines.push((sp > b.limit ? '🔴' : '🟡') + ' ' + esc(b.name) + ' — <b>' + pct + '%</b>'
+        + (sp > b.limit
+          ? ' (' + fmtNum(sp - b.limit) + ' oshdi)'
+          : ' (' + fmtNum(b.limit - sp) + ' qoldi)'));
+    }
+  }
+
+  // --- Takrorlanuvchi to'lovlar: bugun va ertaga ---
+  const due = (st.recurring || [])
+    .filter((r) => r && r.active !== false && r.nextDue)
+    .map((r) => ({ r, days: daysFromToday(r.nextDue, d) }))
+    .filter(({ days }) => days !== null && days <= 1)
+    .sort((x, y) => x.days - y.days);
+  if (due.length) {
+    lines.push('');
+    for (const { r, days } of due) {
+      const when = days < 0 ? '⏰ Kechikdi' : days === 0 ? '⚠️ Bugun' : '📅 Ertaga';
+      const sign = r.type === 'income' ? '+' : '−';
+      lines.push(when + ': ' + esc(r.title || r.cat || 'Toʻlov')
+        + ' — <b>' + sign + fmtNum(r.amount) + ' ' + cur + '</b>');
+    }
+  }
+
+  // --- Qarz muddatlari: kechikkan yoki 3 kun ichida ---
+  const debts = (st.debts || [])
+    .filter((x) => x && (x.status || 'active') !== 'settled' && x.dueDate)
+    .map((x) => ({ x, days: daysFromToday(x.dueDate, d) }))
+    .filter(({ days }) => days !== null && days <= 3)
+    .sort((a, b) => a.days - b.days);
+  if (debts.length) {
+    lines.push('');
+    for (const { x, days } of debts) {
+      const rem = (x.amount || 0) - (x.paid || 0);
+      const who = x.type === 'borrow' ? 'Qarzim' : 'Qarzga berdim';
+      const when = days < 0 ? (-days) + ' kun kechikdi' : days === 0 ? 'bugun' : days + ' kundan keyin';
+      lines.push('🤝 ' + esc(x.person || who) + ' — <b>' + fmtNum(rem) + ' ' + cur + '</b> · ' + when);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 // ============ Bot buyruqlari ============
@@ -480,12 +643,16 @@ const HELP = [
   'Kategoriya yozilmasa — <i>Boshqa</i> bo‘ladi, keyin tugma bilan o‘zgartirasiz.',
   '',
   '<b>Buyruqlar</b>',
+  '/bugun — kunning rejasi',
   '/balans — hisoblar bo‘yicha qoldiq',
   '/oy — shu oy jamlanmasi',
   '/hisobot — oylik hisobotni yuborish',
   '/bekor — oxirgi kiritilganni o‘chirish',
+  '/ertalab — ertalabki xabarni yoqish/o‘chirish',
   '/help — shu yordam',
 ].join('\n');
+
+const NO_STATE = 'Maʼlumot yoʻq — Mini App’ni bir marta ochib sinxronlashtiring.';
 
 /** Saqlangandan keyingi tasdiq xabari. */
 function entryText(tx, rec, cur) {
@@ -548,10 +715,23 @@ async function handleMessage(env, msg) {
       return sendMessage(token, chatId, HELP, { reply_markup: miniAppKb(env.MINIAPP_URL) });
     }
 
+    if (name === 'bugun') {
+      const text = buildMorning(rec, cur);
+      return sendMessage(token, chatId, text || NO_STATE,
+        { reply_markup: miniAppKb(env.MINIAPP_URL) });
+    }
+
+    if (name === 'ertalab') {
+      rec.morning = rec.morning === false;
+      await saveRec(env, chatId, rec);
+      return sendMessage(token, chatId, rec.morning
+        ? '☀️ Ertalabki xabar <b>yoqildi</b> — har kuni 08:00 da keladi.\n<i>Hozir koʻrish: /bugun</i>'
+        : '🌙 Ertalabki xabar <b>oʻchirildi</b>.\n<i>Qayta yoqish: /ertalab</i>');
+    }
+
     if (name === 'balans') {
       if (!rec.state) {
-        return sendMessage(token, chatId,
-          'Maʼlumot yoʻq — Mini App’ni bir marta ochib sinxronlashtiring.',
+        return sendMessage(token, chatId, NO_STATE,
           { reply_markup: miniAppKb(env.MINIAPP_URL) });
       }
       const lines = ['💵 <b>Hisoblar</b>', ''];
@@ -692,10 +872,12 @@ async function setup(env, origin) {
   });
   const cmds = await tgApi(token, 'setMyCommands', {
     commands: [
+      { command: 'bugun', description: 'Kunning rejasi' },
       { command: 'balans', description: 'Hisoblar boʻyicha qoldiq' },
       { command: 'oy', description: 'Shu oy jamlanmasi' },
       { command: 'hisobot', description: 'Oylik hisobotni yuborish' },
       { command: 'bekor', description: 'Oxirgi kiritilganni oʻchirish' },
+      { command: 'ertalab', description: 'Ertalabki xabarni yoqish/oʻchirish' },
       { command: 'help', description: 'Yordam va namunalar' },
     ],
   });
@@ -817,37 +999,70 @@ export default {
     return json({ ok: !!res.ok, error: res.description || null, month: mk }, res.ok ? 200 : 502);
   },
 
-  /** Cron: har oyning 1-sanasida o'tgan oy hisobotini yuboradi. */
+  /**
+   * Cron. Ikki jadval bor (wrangler.toml):
+   *   0 5 1 * *  -> har oyning 1-sanasi 10:00 Toshkent: o'tgan oy hisoboti
+   *   0 3 * * *  -> har kuni 08:00 Toshkent: kunning rejasi
+   */
   async scheduled(event, env, ctx) {
-    ctx.waitUntil((async () => {
-      const now = new Date(event.scheduledTime);
-      const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-      const mk = monthKeyOf(prev);
-
-      let cursor;
-      do {
-        const list = await env.REPORTS.list({ prefix: 'u:', cursor });
-        for (const k of list.keys) {
-          try {
-            const rec = await env.REPORTS.get(k.name, 'json');
-            if (!rec || !rec.chatId) continue;
-            // State bo'lsa jamlanmani qayta hisoblaymiz - bot kiritgan, ilovaga hali
-            // o'tmagan yozuvlar ham hisobotga tushadi. Aks holda saqlangan jamlanma.
-            const data = rec.state
-              ? monthSummary({ state: rec.state, pending: rec.pending }, mk)
-              : (rec.months && rec.months[mk]);
-            if (!data || !data.txCount) continue;
-            await sendMessage(env.TELEGRAM_BOT_TOKEN, rec.chatId,
-              buildReport(mk, data, rec.cur), { reply_markup: miniAppKb(env.MINIAPP_URL) });
-          } catch (e) {
-            console.error('cron', k.name, e && e.stack || e);
-          }
-        }
-        cursor = list.list_complete ? null : list.cursor;
-      } while (cursor);
-    })());
+    const monthly = event.cron === MONTHLY_CRON
+      || (!event.cron && new Date(event.scheduledTime).getUTCDate() === 1);
+    ctx.waitUntil(monthly ? runMonthlyReport(env, event) : runMorningBrief(env, event));
   },
 };
 
+/** KV'dagi har bir foydalanuvchi yozuvi ustidan yuradi, xatolarni izolyatsiya qiladi. */
+async function eachRecord(env, fn) {
+  let cursor;
+  do {
+    const list = await env.REPORTS.list({ prefix: 'u:', cursor });
+    for (const k of list.keys) {
+      try {
+        const rec = await env.REPORTS.get(k.name, 'json');
+        if (rec && rec.chatId) await fn(rec);
+      } catch (e) {
+        console.error('cron', k.name, e && e.stack || e);
+      }
+    }
+    cursor = list.list_complete ? null : list.cursor;
+  } while (cursor);
+}
+
+/** O'tgan oy hisoboti. */
+async function runMonthlyReport(env, event) {
+  const now = new Date(event.scheduledTime);
+  const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const mk = monthKeyOf(prev);
+
+  await eachRecord(env, async (rec) => {
+    // State bo'lsa jamlanmani qayta hisoblaymiz - bot kiritgan, ilovaga hali
+    // o'tmagan yozuvlar ham hisobotga tushadi. Jonli hisob bo'sh chiqsa (masalan
+    // ilovada eski tranzaksiyalar yo'q) ilova yuborgan saqlangan jamlanmaga qaytamiz.
+    const live = rec.state
+      ? monthSummary({ state: rec.state, pending: rec.pending }, mk)
+      : null;
+    const data = (live && live.txCount) ? live : (rec.months && rec.months[mk]);
+    if (!data || !data.txCount) return;
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, rec.chatId,
+      buildReport(mk, data, rec.cur), { reply_markup: miniAppKb(env.MINIAPP_URL) });
+  });
+}
+
+/** Kunning rejasi. `morning === false` bo'lgan yozuvlar o'tkazib yuboriladi. */
+async function runMorningBrief(env, event) {
+  const d = new Date(new Date(event.scheduledTime).getTime() + TZ_OFFSET_MS);
+
+  await eachRecord(env, async (rec) => {
+    if (rec.morning === false) return;
+    const text = buildMorning(rec, rec.cur, d);
+    if (!text) return;
+    await sendMessage(env.TELEGRAM_BOT_TOKEN, rec.chatId, text,
+      { reply_markup: miniAppKb(env.MINIAPP_URL) });
+  });
+}
+
 // Testlar uchun ochiladi (Worker runtime'i qo'shimcha eksportlarni e'tiborsiz qoldiradi)
-export { parseEntry, parseAmount, matchCat, buildReport, monthSummary, allTx, accountBalance, norm };
+export {
+  parseEntry, parseAmount, matchCat, buildReport, monthSummary, allTx, accountBalance, norm,
+  buildMorning, budgetSpent, daysFromToday, monthDays, weekStartTash, monthStartTash,
+};
