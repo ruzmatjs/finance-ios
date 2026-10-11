@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Har gal docs/index.html o'zgarganda shu sanani yangilang: ilova eski kesh ochilganini shundan biladi -->
-<meta name="app-version" content="2026-10-11c">
+<meta name="app-version" content="2026-10-11d">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
@@ -1026,7 +1026,11 @@ function render(keepScroll=true){
     window.scrollTo(0,0);
   }
 }
-function head(title,backTo){return `<div class="back" data-nav="${backTo}" onclick="nav('${backTo}')">‹ Orqaga</div><h1>${title}</h1>`}
+// DIQQAT: bu funksiya avval `head` deb atalardi va iOS WebKit'da global `head`
+// (ya'ni <head> elementi) bilan to'qnashardi - "head is not a function" xatosi
+// chiqib, uni ishlatadigan HAMMA sahifa (Qarzlar, Statistika, Taqqoslash...)
+// telefonda ochilmasdi. Global nomlarni window xossalari bilan to'qnashtirmang.
+function pageHead(title,backTo){return `<div class="back" data-nav="${backTo}" onclick="nav('${backTo}')">‹ Orqaga</div><h1>${title}</h1>`}
 
 // ============ ASOSIY ============
 function viewHome(){
@@ -1457,7 +1461,7 @@ function donut(arr,tot){const R=52,C=2*Math.PI*R;let off=0;
 
 // ============ HISOBLAR ============
 function viewAccounts(){
-  return head('Hisoblar','settings')+
+  return pageHead('Hisoblar','settings')+
     `<div class="card"><div class="between"><span class="muted">Umumiy balans</span><b class="mono" style="color:${total()<0?'var(--expense)':'var(--accent)'}">${fmt(total())}</b></div></div>`+
     `<div class="card">${state.accounts.map(a=>`<div class="listrow" onclick="openAccount('${a.id}')">
       <div class="cic" style="background:${a.c}22">${a.e}</div><div style="flex:1"><div style="font-weight:600">${esc(a.name)}</div></div>
@@ -1483,7 +1487,7 @@ function viewDebts(){
       currentList = allDebts.filter(d => d.status === 'settled');
     }
 
-    let html = head('Qarzlar', tab || 'home') +
+    let html = pageHead('Qarzlar', tab || 'home') +
       `<div class="grid2">
         <div class="card" style="margin-bottom:0">
           <div class="muted" style="font-size:12px">Mendan olishgan (Menga qarz)</div>
@@ -1561,7 +1565,7 @@ function viewDebts(){
     return html;
   } catch(err) {
     console.error("viewDebts error:", err);
-    return head('Qarzlar', tab || 'home') +
+    return pageHead('Qarzlar', tab || 'home') +
       `<div class="card"><div style="color:var(--expense);font-weight:bold;margin-bottom:8px">⚠️ Xatolik yuz berdi</div><div class="muted" style="font-size:13px">${err.message}</div></div>` +
       `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
   }
@@ -1605,7 +1609,7 @@ function viewWishlist(){
   const currentList = wishFilterTab === 'planned' ? planned : bought;
   const unrated = bought.filter(w => !w.rating).length;
 
-  const headerHtml = (page !== tab) ? head('Xaridlar rejasi', tab || 'settings') : '<h1>Xaridlar rejasi</h1>';
+  const headerHtml = (page !== tab) ? pageHead('Xaridlar rejasi', tab || 'settings') : '<h1>Xaridlar rejasi</h1>';
   let html = headerHtml + rateBanner() +
     `<div class="card" style="margin-bottom:10px">
       <div class="between">
@@ -1685,7 +1689,7 @@ function viewWishlist(){
 function budgetSpent(b){const st=pStart(b.period).getTime();const set=new Set(b.catIds||[]);
   return state.tx.filter(t=>t.type==='expense'&&new Date(t.date).getTime()>=st&&(set.size===0||set.has(t.cat))).reduce((s,t)=>s+t.amount,0);}
 function viewBudgets(){
-  let html=head('Byudjetlar','settings');
+  let html=pageHead('Byudjetlar','settings');
   if(!state.budgets.length)html+=emptyBig('📊','Byudjet yoʼq','Sarfni nazorat qilish uchun byudjet tuzing');
   html+=state.budgets.map(b=>{const sp=budgetSpent(b);const p=b.limit>0?sp/b.limit:0;const over=sp>b.limit;
     return `<div class="card" onclick="openBudget('${b.id}')"><div class="between"><h2>${esc(b.name)}</h2><span class="muted" style="font-size:13px">${{weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[b.period]}</span></div>
@@ -1695,7 +1699,7 @@ function viewBudgets(){
   html+=`<button class="btn" onclick="openBudget()">+ Byudjet qoʼshish</button>`;return html;}
 // ============ MAQSADLAR ============
 function viewGoals(){
-  let html=head('Maqsadlar','settings');
+  let html=pageHead('Maqsadlar','settings');
   if(!state.goals.length)html+=emptyBig('🎯','Maqsad yoʼq','Sayohat, mashina yoki texnika uchun jamgʼarma boshlang');
   html+=`<div class="grid2">`+state.goals.map(g=>{const p=g.target>0?Math.min(g.current/g.target,1):0;
     return `<div class="card" style="text-align:center"><div onclick="openGoal('${g.id}')">${ring(p,g.color||'#5856d6',g.e)}
@@ -1708,7 +1712,7 @@ function ring(p,col,emoji){const R=34,C=2*Math.PI*R;const len=p*C;
   return `<svg viewBox="0 0 80 80" width="90" height="90" style="display:block;margin:0 auto"><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}22" stroke-width="8"/><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" transform="rotate(-90 40 40)"/><text x="40" y="46" text-anchor="middle" font-size="18">${emoji||''}</text></svg>`;}
 // ============ TAKRORLANUVCHI ============
 function viewRecurring(){
-  let html = head('Takrorlanuvchi toʻlovlar', 'settings');
+  let html = pageHead('Takrorlanuvchi toʻlovlar', 'settings');
   const list = state.recurring || [];
   if(!list.length){
     html += emptyBig('🔄', 'Toʻlovlar yoʻq', 'Maosh, ijara, obuna yoki kredit toʻlovlarini avtomatlashtiring');
@@ -1746,7 +1750,7 @@ function viewCalendar(){
   const inc=state.tx.filter(t=>t.type==='income'&&dayTx(t)).reduce((s,t)=>s+t.amount,0);
   const exp=state.tx.filter(t=>t.type==='expense'&&dayTx(t)).reduce((s,t)=>s+t.amount,0);
   const dt=state.tx.filter(dayTx).sort((a,b)=>new Date(b.date)-new Date(a.date));
-  return head('Kalendar','settings')+
+  return pageHead('Kalendar','settings')+
     `<div class="card"><div class="between"><span class="link" onclick="calShift(-1)">‹</span>
       <b>${calMonth.toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}</b>
       <span class="link" onclick="calShift(1)">›</span></div>
@@ -1779,7 +1783,7 @@ function viewStats(){
   const hmax=Math.max(...Object.values(daily),1);const weeks=15;let heat='';
   for(let w=weeks-1;w>=0;w--){heat+='<div class="col">';for(let dd=6;dd>=0;dd--){const day=new Date(now());day.setDate(now().getDate()-(w*7+dd));day.setHours(0,0,0,0);
     const v=daily[day.getTime()]||0;const op=v===0?.08:.2+.8*Math.min(v/hmax,1);heat+=`<div class="cell" style="background:rgba(94,92,230,${op})"></div>`;}heat+='</div>';}
-  return head('Statistika','settings')+
+  return pageHead('Statistika','settings')+
     `<div class="grid2">${stat('Oʼrtacha kunlik',compact(avgD),'📅','var(--expense)')}${stat('Oʼrtacha oylik',compact(avgD*30),'🗓️','var(--warn)')}
       ${stat('Eng katta xarajat',compact(hiE),'⬆️','var(--expense)')}${stat('Eng katta daromad',compact(hiI),'⬇️','var(--income)')}</div>
     ${most?`<div class="card"><div class="between"><span>⭐ Eng koʼp ishlatilgan</span><b>${most[0]} (${most[1]})</b></div></div>`:''}
@@ -2047,7 +2051,7 @@ function viewCompare(){
   const curL = cmpLabel(cur.s), prevL = cmpLabel(prev.s);
   const isCur = cmpIsCurrent(cmpOffset);
 
-  let html = head('Oylar taqqoslash', 'report');
+  let html = pageHead('Oylar taqqoslash', 'report');
 
   // Qaysi ikki oy solishtirilmoqda
   html += `<div class="card" style="padding:10px 14px">
@@ -2092,7 +2096,7 @@ function viewCompare(){
 // ============ KATEGORIYALAR ============
 let catTab='expense';
 function viewCategories(){
-  return head('Kategoriyalar','settings')+
+  return pageHead('Kategoriyalar','settings')+
    `<div class="seg"><button class="${catTab==='expense'?'on':''}" onclick="catTab='expense';render()">Xarajat</button><button class="${catTab==='income'?'on':''}" onclick="catTab='income';render()">Daromad</button></div>
     <div class="card"><div class="cats" style="flex-wrap:wrap;overflow:visible">${cats(catTab).map((c,i)=>`<div class="catbtn on" style="width:74px" onclick="openCategory(${state.cats.indexOf(c)})"><div class="cic" style="width:52px;height:52px;background:${c.c}22">${c.e}</div><div class="lbl">${c.n}</div></div>`).join('')}</div></div>
     <button class="btn" onclick="openCategory()">+ Kategoriya qoʼshish</button>`;}
