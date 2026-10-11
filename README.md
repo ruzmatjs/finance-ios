@@ -198,22 +198,49 @@ Tekshirish: **Actions → "Oy oxiri baholash eslatmasi" → Run workflow** → `
 > Xabar matni umumiy — nechta xarid baholanmaganini bot bilmaydi, chunki maʼlumot
 > Telegram CloudStorage'da (faqat Mini App ichida) saqlanadi.
 
-## Telegram oylik hisobot (Mini App + Cloudflare Worker)
+## Telegram bot (Mini App + Cloudflare Worker)
 
-Har oyning 1-sanasida bot lichkaga **oʻtgan oy hisobotini** yuboradi: daromad, xarajat,
-qoldiq va eng koʻp sarflangan 5 kategoriya.
+Bot tokenini ochiq `docs/index.html` ichiga yozib boʻlmaydi, maʼlumot esa Telegram
+CloudStorage'da (faqat Mini App ichida) turadi — shuning uchun oradagi boʻgʻin kichik
+**Cloudflare Worker** (`worker/`). Bot tokeni faqat Cloudflare secret sifatida saqlanadi.
 
-Maʼlumot Telegram CloudStorage'da (faqat Mini App ichida) saqlangani uchun bot uni
-oʻzi oʻqiy olmaydi, bot tokenini esa ochiq `docs/index.html` ichiga yozib boʻlmaydi.
-Shuning uchun oradagi boʻgʻin — kichik **Cloudflare Worker** (`worker/`):
+### Matn orqali kirim
 
-- Mini App har saqlashda oxirgi 3 oy jamlanmasini Worker'ga yuboradi (`POST /sync`)
-- Worker uni KV'da saqlaydi va cron (`0 5 1 * *`) boʻyicha xabar tashlaydi
-- Har soʻrov Telegram `initData` imzosi bilan tekshiriladi; chat ID imzolangan
+Ilovani ochmasdan, botga shunchaki yozasiz:
+
+```
+ovqat 25k           →  Ovqat · −25 000 · Naqd
+benzin 120k karta   →  Yoqilgʼi · −120 000 · Bank karta
++5mln maosh         →  Maosh · +5 000 000
+onamga 200k         →  Uydagilar · −200 000
+```
+
+Summa `25000` / `25k` / `25 ming` / `1.5mln` koʻrinishida; soʻz tartibi muhim emas;
+`ovqatga`, `taksiga`, `maoshim` kabi **qoʻshimchali** shakllar ham tushuniladi.
+Kalit soʻzlar jadvali Mini App'dagi `KW` bilan bir xil. Har yozuvdan keyin
+**✏️ Kategoriya** va **❌ Bekor** tugmalari chiqadi.
+
+Buyruqlar: `/balans` · `/oy` · `/hisobot` · `/bekor` · `/help`
+
+Bot state'ni oʻzgartirmaydi — yozuvlarni KV'dagi **append-only** `pending[]` ga qoʻshadi.
+Mini App `/pull` bilan oladi, mavjud `mergeStates()` orqali birlashtiradi va
+`ackPending` bilan tasdiqlaydi. Ilova ochiq boʻlsa yozuv ~25 soniyada oʻzi koʻrinadi.
+
+### Oylik hisobot
+
+Har oyning 1-sanasi 10:00 (Toshkent) da bot lichkaga **oʻtgan oy hisobotini** yuboradi:
+daromad, xarajat, qoldiq va toʻliq kategoriya taqsimoti. Mini App har saqlashda oxirgi
+3 oy jamlanmasini Worker'ga yuboradi (`POST /sync`), Worker uni KV'da saqlaydi va
+cron (`0 5 1 * *`) boʻyicha xabar tashlaydi.
+
+### Xavfsizlik
+
+- Mini App soʻrovlari Telegram `initData` imzosi bilan tekshiriladi; chat ID imzolangan
   maʼlumotdan olinadi — birovning nomidan yuborib boʻlmaydi
-- Bot tokeni faqat Cloudflare secret sifatida turadi
+- Webhook `X-Telegram-Bot-Api-Secret-Token` sarlavhasi bilan himoyalangan
+- Bot faqat egasiga javob beradi (`OWNER_ID` yoki birinchi `/start` yozgan chat)
 
-Oʻrnatish qoʻllanmasi: [`worker/README.md`](worker/README.md).
+Oʻrnatish qoʻllanmasi va testlar: [`worker/README.md`](worker/README.md).
 Ulash: ilovada **Sozlama → 📊 Telegram oylik hisobot** → Worker manzilini kiriting.
 
 ## Keyingi bosqich (TODO)

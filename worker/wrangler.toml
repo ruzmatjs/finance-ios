@@ -15,4 +15,10 @@ id = "a5ad2f33ba844c0db629eac66fec95a8"
 [vars]
 MINIAPP_URL = "https://ruzmatjs.github.io/finance-ios/"
 
-# Maxfiy: `wrangler secret put TELEGRAM_BOT_TOKEN` orqali qo'yiladi (bu faylga YOZMANG)
+# Maxfiy (bu faylga YOZMANG, `wrangler secret put` orqali qo'yiladi):
+#   TELEGRAM_BOT_TOKEN - @BotFather bergan token
+#   WEBHOOK_SECRET     - webhook'ni himoyalaydigan tasodifiy satr
+#
+# Ixtiyoriy: bot faqat shu chat ID'ga javob beradi. Qo'yilmasa - birinchi /start
+# yozgan odam KV'da ega sifatida qayd etiladi.
+# OWNER_ID = "123456789"

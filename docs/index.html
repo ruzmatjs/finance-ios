@@ -655,6 +655,31 @@ function syncReports(){
   clearTimeout(_reportTimer);
   _reportTimer=setTimeout(()=>{reportPost('/sync');},1500);
 }
+/**
+ * /pull javobini o'zlashtiradi: Worker state'i + bot kiritgan `pending` yozuvlar.
+ * Bot state'ni o'zgartirmaydi, faqat pending[]ga qo'shadi - shuning uchun bu yerda
+ * ularni oddiy tranzaksiya sifatida birlashtiramiz (id bo'yicha, takrorlanmaydi).
+ * @returns {boolean} biror narsa o'zgardimi
+ */
+function absorbPull(res){
+  if(!res||!res.ok) return false;
+  let changed=false;
+  if(res.state){ state=mergeStates(state, res.state); changed=true; }
+  const pend=Array.isArray(res.pending)?res.pending.filter(t=>t&&t.id&&t.amount>0):[];
+  if(pend.length){
+    // incoming.updatedAt bermaymiz - sozlamalar (valyuta, mavzu) o'zgarmasligi uchun
+    state=mergeStates(state, {tx:pend});
+    state.updatedAt=Date.now();
+    changed=true;
+  }
+  return changed;
+}
+/** Bot yozuvlari state'ga o'tdi - Worker'dan ro'yxatdan chiqarishni so'raymiz. */
+function ackPending(res){
+  const pend=(res&&res.pending)||[];
+  if(!pend.length) return null;
+  return reportPost('/sync', {ackPending: pend.map(t=>t.id)});
+}
 async function sendReportNow(mk){
   const btn=document.getElementById('repSendBtn'), txt=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Yuborilmoqda...';}
@@ -2894,14 +2919,14 @@ async function boot(){
   if(reportApi() && TG && TG.initData){
     try {
       const res = await reportPost('/pull');
-      if(res && res.ok && res.state){
-        state = mergeStates(state, res.state);
+      if(absorbPull(res)){
         ensure();
         applyTheme();
         localWrite();
         idbSet(state);
         render();
       }
+      await ackPending(res);
     } catch(e){}
   }
 
@@ -2921,6 +2946,7 @@ async function syncWithCloud(silent = true){
   if(_syncing) return;
   _syncing = true;
   let changed = false;
+  let pulled = null;
   try {
     if(cloudOn()){
       const cloud = await cloudLoad();
@@ -2934,11 +2960,10 @@ async function syncWithCloud(silent = true){
       }
     }
     if(reportApi() && TG && TG.initData){
-      const res = await reportPost('/pull');
-      if(res && res.ok && res.state){
-        const prevTxLen = (state.tx||[]).length;
-        const prevUp = state.updatedAt || 0;
-        state = mergeStates(state, res.state);
+      pulled = await reportPost('/pull');
+      const prevTxLen = (state.tx||[]).length;
+      const prevUp = state.updatedAt || 0;
+      if(absorbPull(pulled)){
         if((state.tx||[]).length !== prevTxLen || (state.updatedAt||0) > prevUp){
           changed = true;
         }
@@ -2949,7 +2974,9 @@ async function syncWithCloud(silent = true){
       localWrite();
       idbSet(state);
       render();
+      if(cloudOn()) cloudSave();
     }
+    await ackPending(pulled);
   } catch(e){
     if(!silent) console.warn('sync error:', e);
   } finally {
