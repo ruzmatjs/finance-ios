@@ -7,9 +7,12 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Har gal docs/index.html o'zgarganda shu sanani yangilang: ilova eski kesh ochilganini shundan biladi -->
-<meta name="app-version" content="2026-11-02a">
+<meta name="app-version" content="2026-11-02b">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   /* =====================================================================
      DIZAYN TOKENLARI
@@ -25,7 +28,7 @@
     --income-soft:rgba(22,163,74,.12); --expense-soft:rgba(229,72,77,.12);
     --radius:20px; --radius-sm:14px;
     --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.05);
-    --tabbar-h:64px; --safe-b:env(safe-area-inset-bottom,0px);
+    --tabbar-h:76px; --safe-b:env(safe-area-inset-bottom,0px);
     color-scheme:light;
   }
   :root[data-theme="dark"]{
@@ -63,7 +66,7 @@
   /* ============ Asos ============ */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{background:var(--bg)}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif;
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;font-feature-settings:"cv11","ss01","ss03";
        background:var(--bg);color:var(--text);overscroll-behavior:none;-webkit-font-smoothing:antialiased;
        padding-bottom:calc(var(--tabbar-h) + var(--safe-b) + 28px);font-size:15px;line-height:1.35}
   .wrap{max-width:600px;margin:0 auto;padding:14px 16px 8px}
@@ -172,7 +175,7 @@
        display:flex;align-items:center;justify-content:center;touch-action:manipulation}
   .fab svg{width:26px;height:26px}
   .fab:active{transform:scale(.95)}
-  .btn-fix{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabbar-h) + var(--safe-b) + 12px);width:calc(100% - 32px);max-width:568px;margin-top:0;z-index:22;box-shadow:0 10px 24px -10px var(--accent)}
+  .btn.btn-fix{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabbar-h) + var(--safe-b) + 12px);width:calc(100% - 32px);max-width:568px;margin-top:0;z-index:22;box-shadow:0 10px 24px -10px var(--accent)}
 
   /* ============ Modal / sheet ============ */
   .modal{position:fixed;inset:0;background:rgba(8,10,14,.45);z-index:40;display:none;align-items:flex-end}
@@ -245,9 +248,82 @@
          box-shadow:0 10px 30px rgba(0,0,0,.25);transition:opacity .2s,transform .2s;pointer-events:none;text-align:center}
   .toast.show{opacity:1;transform:translate(-50%,0)}
 
+
+  /* =====================================================================
+     PREMIUM QATLAM
+     ===================================================================== */
+  /* Suzib turuvchi shisha tab bar */
+  .tabbar{left:12px;right:12px;bottom:calc(10px + var(--safe-b));padding:6px;border-radius:24px;border:1px solid var(--sep);
+          box-shadow:0 12px 32px -12px rgba(15,17,21,.28),0 2px 6px rgba(15,17,21,.04)}
+  .tabbar button{isolation:isolate;padding:7px 0 5px;border-radius:18px;transition:color .2s}
+  .tabbar button::before{content:"";position:absolute;inset:0 6%;border-radius:18px;background:var(--accent-soft);z-index:-1;
+          opacity:0;transform:scale(.7);transition:opacity .25s,transform .3s cubic-bezier(.2,.9,.3,1.3)}
+  .tabbar button.active::before{opacity:1;transform:scale(1)}
+  .tdot{top:4px}
+
+  /* Balans kartasi - chuqur gradient */
+  .hero{background:linear-gradient(140deg,var(--accent) 0%,#6d4bff 100%);padding:20px 20px 16px}
+  @supports (color:color-mix(in srgb,red 50%,blue)){
+    .hero{background:
+      radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--accent) 72%,#fff) 0%,transparent 55%),
+      linear-gradient(150deg,color-mix(in srgb,var(--accent) 88%,#000) 0%,color-mix(in srgb,var(--accent) 50%,#3b0764) 100%)}
+    .hero.danger{background:linear-gradient(150deg,var(--expense) 0%,color-mix(in srgb,var(--expense) 60%,#7f1d1d) 100%)}
+  }
+  .hero .spark{display:block;width:calc(100% + 40px);height:54px;margin:10px -20px 0}
+  .hero .split{margin-top:6px}
+  .hero .split>div{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+
+  /* Kunlik maslahat kartasi */
+  .insight{display:flex;align-items:center;gap:14px}
+  .insight .big{font-size:24px;font-weight:800;letter-spacing:-.6px;margin-top:2px}
+  .insight .sub{font-size:12.5px;color:var(--text2);margin-top:3px;line-height:1.4}
+
+  /* Hisob plitkalari */
+  .acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .acc-tile{position:relative;overflow:hidden;border-radius:20px;padding:14px;min-height:120px;color:#fff;display:flex;flex-direction:column;
+            justify-content:space-between;cursor:pointer;box-shadow:var(--shadow);touch-action:manipulation}
+  .acc-tile::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.16)}
+  .acc-tile .e{font-size:22px;width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center}
+  .acc-tile .n{font-size:13px;font-weight:600;opacity:.9;margin-top:10px}
+  .acc-tile .v{font-size:17px;font-weight:800;letter-spacing:-.3px}
+  .acc-tile.add{background:transparent;color:var(--text2);border:1.5px dashed var(--text3);box-shadow:none;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:14px}
+  .acc-tile.add::after{display:none}
+
+  /* Avatar (qarzlar) */
+  .ava{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;color:#fff}
+
+  /* Kichik amal tugmalari */
+  .act{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;padding:9px 14px;font-size:13.5px;font-weight:700;cursor:pointer;
+       background:var(--card2);color:var(--text);touch-action:manipulation;font-family:inherit}
+  .act svg{width:16px;height:16px}
+  .act.pri{background:var(--accent);color:var(--ink)}
+  .act.pos{background:var(--income);color:#fff}
+  .act.neg{background:var(--expense);color:#fff}
+  .act.ic{padding:9px;width:38px;height:38px}
+  .acts{display:flex;gap:8px;align-items:center;margin-top:12px}
+
+  /* Kategoriya plitkalari */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .tiles .t{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 2px;border-radius:16px;cursor:pointer;font-size:11.5px;font-weight:600;text-align:center;line-height:1.15}
+  .tiles .t:active{background:var(--card2)}
+
+  /* Bosilganda javob */
+  .card[onclick],.acc-tile,.quick button,.group .item,.tx{transition:transform .14s ease,background .14s}
+  .card[onclick]:active,.acc-tile:active{transform:scale(.985)}
+
+  /* Sahifa ochilish animatsiyasi */
+  #app.enter>*{animation:rise .46s cubic-bezier(.2,.8,.2,1) both}
+  #app.enter>*:nth-child(2){animation-delay:.03s} #app.enter>*:nth-child(3){animation-delay:.06s}
+  #app.enter>*:nth-child(4){animation-delay:.09s} #app.enter>*:nth-child(5){animation-delay:.12s}
+  #app.enter>*:nth-child(6){animation-delay:.15s} #app.enter>*:nth-child(7){animation-delay:.18s}
+  #app.enter>*:nth-child(n+8){animation-delay:.21s}
+  #app.enter>.btn-fix{animation:none}
+  @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .prog>i{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  @media (prefers-reduced-motion:reduce){#app.enter>*{animation:none}.prog>i{transition:none}}
   @media (min-width: 601px){
     .wrap{padding:24px 16px 8px}
-    .tabbar{max-width:600px;left:50%;right:auto;transform:translateX(-50%);width:100%;border-radius:20px 20px 0 0;border:1px solid var(--sep);border-bottom:none}
+    .tabbar{max-width:576px;left:50%;right:auto;transform:translateX(-50%);width:calc(100% - 24px)}
     .modal{align-items:center;justify-content:center;padding:16px}
     .sheet{border-radius:24px;max-height:86vh;box-shadow:0 20px 50px rgba(0,0,0,.25);animation:zoomIn .2s ease;padding-bottom:20px}
     .sheet::before{display:none}
@@ -1217,6 +1293,9 @@ function render(keepScroll=true){
       <button class="btn ghost" style="margin-top:12px" onclick="go('home')">Asosiyga qaytish</button></div>`;
   }
   el.innerHTML=out;
+  if(!keepScroll){ el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); }
+  else el.classList.remove('enter');
+  if(page==='home') countUp();
 
   if(TG&&TG.BackButton){
     try {
@@ -1271,6 +1350,63 @@ function greetName(){
   try{ const u=TG&&TG.initDataUnsafe&&TG.initDataUnsafe.user; return u&&u.first_name?String(u.first_name):''; }catch(e){ return ''; }
 }
 function openTxType(t){ openTx(); form.type=t; form.cat=null; openSheet(txSheet); }
+/** Oxirgi `n` kun oxiridagi umumiy balans (eng eskisidan bugungacha). */
+function balanceSeries(n){
+  const byDay={};
+  state.tx.forEach(t=>{ if(t.type==='transfer') return; const d=parseSafeDate(t.date); if(!d) return;
+    const k=d.toDateString(); byDay[k]=(byDay[k]||0)+signed(t); });
+  let b=total(); const out=[b]; const d=now();
+  for(let i=0;i<n-1;i++){ b-=byDay[d.toDateString()]||0; out.push(b); d.setDate(d.getDate()-1); }
+  return out.reverse();
+}
+/** Balans kartasidagi silliq chiziqli grafik (SVG). */
+function sparkline(vals){
+  const W=360,H=54,P=4; const mn=Math.min(...vals),mx=Math.max(...vals); const rng=(mx-mn)||1;
+  const pts=vals.map((v,i)=>[i/(vals.length-1)*W, P+(1-(v-mn)/rng)*(H-P*2)]);
+  let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for(let i=1;i<pts.length;i++){ const [x0,y0]=pts[i-1],[x1,y1]=pts[i]; const cx=(x0+x1)/2;
+    d+=` C${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`; }
+  const last=pts[pts.length-1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="spg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".32"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    <path d="${d} L${W},${H} L0,${H} Z" fill="url(#spg)"/>
+    <path d="${d}" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>
+    <circle cx="${last[0]-3}" cy="${last[1]}" r="3.5" fill="#fff"/></svg>`;
+}
+/** Kunlik maslahat: bot ertalabki xabaridagi "Bugun sarflash mumkin" bilan bir xil hisob. */
+function dailyInsight(){
+  const d=now(), dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(), day=d.getDate(), left=dim-day+1;
+  const monthlyB=(state.budgets||[]).filter(b=>b.period==='monthly');
+  const all=monthlyB.find(b=>!(b.catIds||[]).length);
+  const use=all?[all]:monthlyB;
+  const ring=(p,col)=>{const R=22,C=2*Math.PI*R,l=Math.max(0,Math.min(1,p))*C;
+    return `<svg width="58" height="58" viewBox="0 0 58 58" style="flex-shrink:0"><circle cx="29" cy="29" r="${R}" fill="none" stroke="var(--sep)" stroke-width="6"/>
+      <circle cx="29" cy="29" r="${R}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${l} ${C}" transform="rotate(-90 29 29)"/>
+      <text x="29" y="33" text-anchor="middle" font-size="12" font-weight="800" fill="var(--text)" font-family="inherit">${Math.round(p*100)}%</text></svg>`;};
+  if(use.length){
+    const lim=use.reduce((s,b)=>s+(b.limit||0),0), sp=use.reduce((s,b)=>s+budgetSpent(b),0);
+    const rest=lim-sp, per=Math.max(0,Math.floor(rest/left/1000)*1000), p=lim>0?sp/lim:0;
+    const col=p>=1?'var(--expense)':p>=.8?'var(--warn)':'var(--income)';
+    return `<div class="card insight press" data-nav="budgets" onclick="nav('budgets')">${ring(p,col)}
+      <div style="flex:1;min-width:0"><div class="muted" style="font-size:12.5px;font-weight:600">${rest>=0?'Bugun sarflash mumkin':'Byudjet oshib ketdi'}</div>
+        <div class="big mono" style="color:${rest>=0?'var(--text)':'var(--expense)'}">${rest>=0?'~'+fmt(per):fmt(-rest)}</div>
+        <div class="sub">${rest>=0?`${left} kunga ${compact(rest)} qoldi`:'Oy oxirigacha tejash kerak'}</div></div></div>`;
+  }
+  const spent=monthly('expense'); if(!spent) return '';
+  const avg=spent/day, fc=avg*dim;
+  return `<div class="card insight">${ring(day/dim,'var(--accent)')}
+    <div style="flex:1;min-width:0"><div class="muted" style="font-size:12.5px;font-weight:600">Kunlik oʻrtacha sarf</div>
+      <div class="big mono">${fmt(avg)}</div>
+      <div class="sub">Shu tezlikda oy oxirida ~${compact(fc)} · <span class="link" style="font-size:12.5px" data-nav="budgets" onclick="nav('budgets')">byudjet qoʻyish</span></div></div></div>`;
+}
+/** Balansni 0 dan sanab chiqish (sessiyada bir marta). */
+let _countedUp=false;
+function countUp(){
+  const el=document.getElementById('heroAmt'); if(!el||_countedUp||isHidden()) return;
+  _countedUp=true; const to=total(); const t0=performance.now(), dur=900;
+  const step=t=>{const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.textContent=fmt(to*e); if(k<1) requestAnimationFrame(step);};
+  requestAnimationFrame(step);
+}
 function viewHome(){
   const up=upcoming();
   const nm=greetName();
@@ -1287,9 +1423,6 @@ function viewHome(){
 
   const q=(fn,ic,lbl,col)=>`<button onclick="${fn}"><span class="qi" style="background:${softOf(col)};color:${col}">${icon(ic,2.2)}</span>${lbl}</button>`;
 
-  const accs=state.accounts.map(a=>{const b=accountBalance(a.id);
-    return `<div class="item" data-nav="accounts" onclick="nav('accounts')"><div class="cic" style="width:36px;height:36px;border-radius:11px;font-size:17px;background:${a.c}22">${a.e}</div>
-      <div class="tt">${esc(a.name)}</div><div class="tr mono" style="color:${b<0?'var(--expense)':'var(--text)'};font-weight:700">${fmt(b)}</div></div>`;}).join('');
 
   const debtsBlock=(lentTot||borrowedTot)?`${secHead('Qarzlar','Barchasi','debts')}
     <div class="grid2" data-nav="debts" onclick="nav('debts')" style="cursor:pointer">
@@ -1312,8 +1445,9 @@ function viewHome(){
     <div class="hero ${total()<0?'danger':''}">
       <div class="between"><div class="lbl">Umumiy balans</div>
         <button class="eye" onclick="toggleHideBalance()" aria-label="Summalarni yashirish">${icon(state.hideBalance?'eyeoff':'eye',2.2)}</button></div>
-      <div class="amt mono">${fmt(total())}</div>
+      <div class="amt mono" id="heroAmt">${fmt(total())}</div>
       ${todayBadge}
+      ${sparkline(balanceSeries(30))}
       <div class="split">
         <div><div class="k">Bu oy kirim</div><div class="v mono">+${compact(monthly('income'))}</div></div>
         <div><div class="k">Bu oy chiqim</div><div class="v mono">−${compact(monthly('expense'))}</div></div>
@@ -1325,10 +1459,11 @@ function viewHome(){
       ${q("openTxType('transfer')",'swap','Oʻtkazma','var(--transfer)')}
       ${q("openDebt()",'hand','Qarz','var(--warn)')}
     </div>
+    ${dailyInsight()}
     ${rateBanner()}
     ${secHead('Soʻnggi 7 kun','Tarix ›','list')}
     ${weeklyChart()}
-    ${secHead('Hisoblar','Boshqarish','accounts')}<div class="group">${accs}</div>
+    ${secHead('Hisoblar','Boshqarish','accounts')}${accTiles(false)}
     ${budgetBlock}
     ${debtsBlock}
     ${upBlock}`;
@@ -1630,8 +1765,11 @@ function viewReport(){
       <b style="font-size:14.5px;text-align:center;text-transform:capitalize">${esc(label)}</b>
       <button class="xbtn" style="width:36px;height:36px;transform:scaleX(-1)" onclick="shiftReportPeriod(1)" aria-label="Keyingi"><span style="width:18px;height:18px;display:flex">${icon('back',2.4)}</span></button>
     </div>
-    <div style="margin-top:8px;text-align:center;font-size:12px;color:var(--text2)">
-      Tanlash: <input type="${reportRange==='month'?'month':reportRange==='year'?'number':'date'}" value="${getReportPickerVal()}" onchange="setReportPickerValue(this.value)" style="width:auto;display:inline-block;padding:3px 8px;font-size:12px;margin:0">
+    <div style="margin-top:10px;display:flex;justify-content:center">
+      <label style="display:inline-flex;align-items:center;gap:6px;background:var(--card2);border-radius:10px;padding:0 10px;color:var(--text2);font-size:12.5px;font-weight:600">
+        <span style="width:15px;height:15px;display:flex">${icon('calendar')}</span>
+        <input type="${reportRange==='month'?'month':reportRange==='year'?'number':'date'}" value="${getReportPickerVal()}" onchange="setReportPickerValue(this.value)" style="width:auto;background:none;border:none;padding:7px 0;font-size:13px;margin:0;color:var(--text);font-weight:600">
+      </label>
     </div>
   </div>`;
 
@@ -1695,8 +1833,8 @@ function viewReport(){
 
   // Summary Card (Daromad vs Xarajat)
   html += `<div class="grid2">
-    ${stat('Daromad', fmt(incTot), '⬇️', 'var(--income)')}
-    ${stat('Xarajat', fmt(expTot), '⬆️', 'var(--expense)')}
+    ${stat('Daromad', fmt(incTot), '↓', 'var(--income)')}
+    ${stat('Xarajat', fmt(expTot), '↑', 'var(--expense)')}
   </div>`;
 
   // Category breakdown & Donut
@@ -1719,114 +1857,105 @@ function donut(arr,tot){const R=52,C=2*Math.PI*R;let off=0;
   return `<svg viewBox="0 0 140 140" width="160" height="160" style="display:block;margin:0 auto">${segs}<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--text2)">Jami</text><text x="70" y="84" text-anchor="middle" font-size="13" font-weight="800" fill="var(--text)">${compact(tot)}</text></svg>`;}
 
 // ============ HISOBLAR ============
+/** #rrggbb rangni qoraytirish/oqartirish (amt: -1..1). */
+function shade(hex,amt){
+  const m=String(hex||'').match(/^#?([0-9a-f]{6})$/i); if(!m) return hex||'#3e6bff';
+  const n=parseInt(m[1],16); const f=c=>Math.round(amt<0?c*(1+amt):c+(255-c)*amt);
+  return '#'+[n>>16&255,n>>8&255,n&255].map(c=>f(c).toString(16).padStart(2,'0')).join('');
+}
+function accTiles(manage){
+  const tiles=state.accounts.map(a=>{const b=accountBalance(a.id);
+    const act=manage?`onclick="openAccount('${a.id}')"`:`data-nav="accounts" onclick="nav('accounts')"`;
+    return `<div class="acc-tile" ${act} style="background:linear-gradient(145deg,${a.c},${shade(a.c,-.42)})">
+      <div class="e">${a.e}</div>
+      <div><div class="n">${esc(a.name)}</div><div class="v mono">${b<0?'−':''}${fmt(b)}</div></div></div>`;}).join('');
+  const add=`<div class="acc-tile add" onclick="openAccount()"><span style="width:20px;height:20px;display:flex">${icon('plus',2.4)}</span>Hisob qoʻshish</div>`;
+  return `<div class="acc-grid">${tiles}${manage||state.accounts.length%2?add:''}</div>`;
+}
 function viewAccounts(){
   return pageHead('Hisoblar','settings')+
-    `<div class="card"><div class="between"><span class="muted">Umumiy balans</span><b class="mono" style="color:${total()<0?'var(--expense)':'var(--accent)'}">${fmt(total())}</b></div></div>`+
-    `<div class="card">${state.accounts.map(a=>`<div class="listrow" onclick="openAccount('${a.id}')">
-      <div class="cic" style="background:${a.c}22">${a.e}</div><div style="flex:1"><div style="font-weight:600">${esc(a.name)}</div></div>
-      <b class="mono" style="color:${accountBalance(a.id)<0?'var(--expense)':'var(--text)'}">${fmt(accountBalance(a.id))}</b></div>`).join('')}</div>`+
-    `<button class="btn" onclick="openAccount()">+ Hisob qoʼshish</button>`;
+    `<div class="card between"><span class="muted" style="font-weight:600">Umumiy balans</span><b class="mono" style="font-size:18px;color:${total()<0?'var(--expense)':'var(--text)'}">${fmt(total())}</b></div>`+
+    accTiles(true)+
+    `<div class="hint" style="text-align:center">Hisobni tahrirlash uchun ustiga bosing</div>`;
 }
 // ============ QARZLAR ============
 let debtFilterTab = 'lend'; // 'lend', 'borrow', 'settled'
+const AVA_COLORS=['#3e6bff','#8b5cf6','#ec4899','#f59e0b','#14b8a6','#ef4444','#0ea5e9','#22c55e'];
+function avaColor(name){let h=0;for(const ch of String(name||'?'))h=(h*31+ch.charCodeAt(0))>>>0;return AVA_COLORS[h%AVA_COLORS.length];}
+function initials(name){const p=String(name||'?').trim().split(/\s+/);return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase();}
 function viewDebts(){
   try {
     const allDebts = (state.debts || []).filter(d => d && typeof d === 'object');
-    const activeDebts = allDebts.filter(d => (d.status || 'active') !== 'settled');
-    const lentTot = activeDebts.filter(d => d.type === 'lend').reduce((s, d) => s + Math.max(0, (parseFloat(d.amount)||0) - (parseFloat(d.paid) || 0)), 0);
-    const borrowedTot = activeDebts.filter(d => d.type === 'borrow').reduce((s, d) => s + Math.max(0, (parseFloat(d.amount)||0) - (parseFloat(d.paid) || 0)), 0);
+    const isActive = d => (d.status || 'active') !== 'settled';
+    const rem = d => Math.max(0, (parseFloat(d.amount)||0) - (parseFloat(d.paid)||0));
+    const lentTot = allDebts.filter(d => d.type === 'lend' && isActive(d)).reduce((s, d) => s + rem(d), 0);
+    const borrowedTot = allDebts.filter(d => d.type === 'borrow' && isActive(d)).reduce((s, d) => s + rem(d), 0);
     const netDebt = lentTot - borrowedTot;
+    const nL = allDebts.filter(d=>d.type==='lend'&&isActive(d)).length;
+    const nB = allDebts.filter(d=>d.type==='borrow'&&isActive(d)).length;
+    const nS = allDebts.filter(d=>d.status==='settled').length;
 
-    let currentList = [];
-    if(debtFilterTab === 'lend') {
-      currentList = allDebts.filter(d => d.type === 'lend' && (d.status || 'active') !== 'settled');
-    } else if(debtFilterTab === 'borrow') {
-      currentList = allDebts.filter(d => d.type === 'borrow' && (d.status || 'active') !== 'settled');
-    } else {
-      currentList = allDebts.filter(d => d.status === 'settled');
-    }
+    const currentList = debtFilterTab === 'settled' ? allDebts.filter(d => d.status === 'settled')
+      : allDebts.filter(d => d.type === debtFilterTab && isActive(d));
 
     let html = pageHead('Qarzlar', tab || 'home') +
-      `<div class="grid2">
-        <div class="card" style="margin-bottom:0">
-          <div class="muted" style="font-size:12px">Mendan olishgan (Menga qarz)</div>
-          <div class="v mono" style="color:var(--income);font-size:18px;font-weight:800;margin-top:4px">+${fmt(lentTot)}</div>
-        </div>
-        <div class="card" style="margin-bottom:0">
-          <div class="muted" style="font-size:12px">Men olganman (Mening qarzim)</div>
-          <div class="v mono" style="color:var(--expense);font-size:18px;font-weight:800;margin-top:4px">−${fmt(borrowedTot)}</div>
+      `<div class="card">
+        <div class="muted" style="font-size:12.5px;font-weight:600">Sof holat</div>
+        <div class="mono" style="font-size:26px;font-weight:800;letter-spacing:-.6px;margin-top:2px;color:${netDebt>=0?'var(--income)':'var(--expense)'}">${fmtSigned(netDebt)||fmt(0)}</div>
+        <div class="grid2" style="margin:14px 0 0">
+          <div style="background:var(--income-soft);border-radius:14px;padding:10px 12px"><div style="font-size:11.5px;font-weight:600;color:var(--income)">Menga qaytariladi</div><div class="mono" style="font-weight:800;margin-top:2px">${fmt(lentTot)}</div></div>
+          <div style="background:var(--expense-soft);border-radius:14px;padding:10px 12px"><div style="font-size:11.5px;font-weight:600;color:var(--expense)">Men qaytaraman</div><div class="mono" style="font-weight:800;margin-top:2px">${fmt(borrowedTot)}</div></div>
         </div>
       </div>
-      <div class="card" style="padding:10px 14px;margin-top:10px">
-        <div class="between"><span class="muted" style="font-size:13px">Sof qarz holati:</span><b class="mono" style="color:${netDebt>=0?'var(--income)':'var(--expense)'}">${fmtSigned(netDebt)}</b></div>
-      </div>
-      <div class="seg" style="margin:12px 0">
-        <button class="${debtFilterTab==='lend'?'on':''}" onclick="debtFilterTab='lend';render()">🟢 Mendan olganlar (${allDebts.filter(d=>d.type==='lend'&&(d.status||'active')!=='settled').length})</button>
-        <button class="${debtFilterTab==='borrow'?'on':''}" onclick="debtFilterTab='borrow';render()">🔴 Men olganlar (${allDebts.filter(d=>d.type==='borrow'&&(d.status||'active')!=='settled').length})</button>
-        <button class="${debtFilterTab==='settled'?'on':''}" onclick="debtFilterTab='settled';render()">✓ Yopilganlar (${allDebts.filter(d=>d.status==='settled').length})</button>
+      <div class="seg">
+        <button class="${debtFilterTab==='lend'?'on':''}" onclick="debtFilterTab='lend';render()">Menga · ${nL}</button>
+        <button class="${debtFilterTab==='borrow'?'on':''}" onclick="debtFilterTab='borrow';render()">Mendan · ${nB}</button>
+        <button class="${debtFilterTab==='settled'?'on':''}" onclick="debtFilterTab='settled';render()">Yopilgan · ${nS}</button>
       </div>`;
 
     if(!currentList.length){
       html += emptyBig('🤝', 'Qarzlar yoʻq', debtFilterTab==='lend'?'Sizdan qarz olganlar yoʻq':(debtFilterTab==='borrow'?'Siz olgan qarzlar yoʻq':'Yopilgan qarzlar tarixi mavjud emas'));
     } else {
       html += currentList.map(d => {
-        const dAmt = parseFloat(d.amount) || 0;
-        const dPaid = parseFloat(d.paid) || 0;
-        const remaining = Math.max(0, dAmt - dPaid);
+        const dAmt = parseFloat(d.amount) || 0, dPaid = parseFloat(d.paid) || 0, remaining = rem(d);
         const isLend = d.type === 'lend';
         const isSettled = (d.status === 'settled') || (dPaid >= dAmt && dAmt > 0);
         const acc = accBy(d.accountId);
         const prog = dAmt > 0 ? Math.min(100, Math.round((dPaid / dAmt) * 100)) : 0;
-        const personName = esc(d.person || 'Shaxs (Qarz)');
-        const dateStr = fmtD(d.date);
-        const dueStr = d.dueDate ? fmtD(d.dueDate) : '';
-        
+        const col = isLend ? 'var(--income)' : 'var(--expense)';
+        const due = d.dueDate ? daysUntil(toDateInput(d.dueDate)) : null;
+        const dueTag = (due===null||isSettled) ? '' : `<span class="tag" style="${due<0?'background:var(--expense-soft);color:var(--expense)':due<=3?'background:rgba(245,158,11,.14);color:var(--warn)':''}">⏳ ${due<0?`${-due} kun oʻtdi`:due===0?'bugun':`${due} kun`}</span>`;
         return `<div class="card">
-          <div class="between" style="margin-bottom:6px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div class="cic" style="width:36px;height:36px;font-size:16px;background:${isLend?'var(--income-soft)':'var(--expense-soft)'}">${isLend?'👤':'👥'}</div>
-              <div>
-                <div style="font-weight:700;font-size:15px">${personName}</div>
-                <div class="meta muted" style="font-size:11px">${acc.e} ${acc.name} · 🗓 ${isLend?'Berildi':'Olindi'}: ${dateStr} ${dueStr ? `· ⏳ Muddat: ${dueStr}` : ''}</div>
-              </div>
+          <div class="row" style="align-items:flex-start">
+            <div class="ava" style="background:${avaColor(d.person)}">${esc(initials(d.person))}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:15.5px">${esc(d.person || 'Shaxs (Qarz)')}</div>
+              <div class="muted" style="font-size:12.5px;margin-top:2px">${isLend?'Berildi':'Olindi'} ${fmtD(d.date)} · ${acc.e} ${esc(acc.name)}</div>
+              ${dueTag?`<div style="margin-top:6px">${dueTag}</div>`:''}
             </div>
             <div style="text-align:right">
-              <div class="mono" style="font-weight:800;font-size:16px;color:${isSettled?'var(--text2)':(isLend?'var(--income)':'var(--expense)')}">${isSettled ? '✓ Yopildi' : fmt(remaining)}</div>
-              ${dPaid > 0 && !isSettled ? `<div class="meta muted" style="font-size:11px">Jami: ${fmt(dAmt)}</div>` : ''}
+              <div class="mono" style="font-weight:800;font-size:16px;color:${isSettled?'var(--text2)':col}">${isSettled ? '✓ Yopildi' : fmt(remaining)}</div>
+              ${dPaid > 0 && !isSettled ? `<div class="muted mono" style="font-size:11.5px">/ ${compact(dAmt)}</div>` : ''}
             </div>
           </div>
-          ${d.note ? `<div style="font-size:12px;color:var(--text2);margin:4px 0">${esc(d.note)}</div>` : ''}
-          ${dPaid > 0 && !isSettled ? `
-            <div class="prog" style="margin:8px 0 4px"><i style="width:${prog}%;background:${isLend?'var(--income)':'var(--expense)'}"></i></div>
-            <div class="between" style="font-size:11px;color:var(--text2)">
-              <span>Qaytarildi: ${compact(dPaid)} (${prog}%)</span>
-              <span>Qoldi: ${compact(remaining)}</span>
-            </div>
-          ` : ''}
-          <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep);gap:8px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px">
-              ${!isSettled ? `
-                <button class="chip on" style="background:${isLend?'var(--income)':'var(--expense)'};border:none;padding:6px 14px;cursor:pointer" onclick="openRepay('${d.id}')">
-                  ${isLend ? '📥 Qaytarib oldim' : '📤 Qaytarib berdim'}
-                </button>
-              ` : `<span style="font-size:12px;color:var(--income);font-weight:600">✓ Toʻliq qaytarilgan</span>`}
-              <button class="chip" style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--accent-soft);color:var(--accent);border-color:transparent;font-weight:600;cursor:pointer" onclick="forwardDebtTelegram('${d.id}')">
-                <span>✈️</span> Telegram
-              </button>
-            </div>
-            <span class="link" onclick="openDebt('${d.id}')" style="font-size:12px;cursor:pointer">Tahrirlash ›</span>
+          ${d.note ? `<div class="muted" style="font-size:12.5px;margin-top:8px">${esc(d.note)}</div>` : ''}
+          ${dPaid > 0 && !isSettled ? `<div class="prog" style="margin:12px 0 0"><i style="width:${prog}%;background:${col}"></i></div>` : ''}
+          <div class="acts">
+            ${!isSettled ? `<button class="act ${isLend?'pos':'neg'}" style="flex:1" onclick="openRepay('${d.id}')">${isLend ? 'Qaytarib oldim' : 'Qaytarib berdim'}</button>` : `<span style="flex:1;font-size:13px;color:var(--income);font-weight:700">✓ Toʻliq qaytarilgan</span>`}
+            <button class="act ic" onclick="forwardDebtTelegram('${d.id}')" aria-label="Telegramda yuborish">${icon('send')}</button>
+            <button class="act ic" onclick="openDebt('${d.id}')" aria-label="Tahrirlash"><span style="font-size:15px">✏️</span></button>
           </div>
         </div>`;
       }).join('');
     }
 
-    html += `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
+    html += `<button class="btn" onclick="openDebt()">+ Yangi qarz</button>`;
     return html;
   } catch(err) {
     console.error("viewDebts error:", err);
     return pageHead('Qarzlar', tab || 'home') +
-      `<div class="card"><div style="color:var(--expense);font-weight:bold;margin-bottom:8px">⚠️ Xatolik yuz berdi</div><div class="muted" style="font-size:13px">${err.message}</div></div>` +
-      `<button class="btn" onclick="openDebt()">+ Yangi qarz qoʻshish</button>`;
+      `<div class="card"><div style="color:var(--expense);font-weight:bold;margin-bottom:8px">⚠️ Xatolik yuz berdi</div><div class="muted" style="font-size:13px">${esc(err.message)}</div></div>` +
+      `<button class="btn" onclick="openDebt()">+ Yangi qarz</button>`;
   }
 }
 // ============ XARIDLAR REJASI (WISHLIST) ============
@@ -1864,32 +1993,24 @@ function viewWishlist(){
   const bought = all.filter(w => w.status === 'bought').sort(byPriority);
   const plannedTot = planned.reduce((s, w) => s + (w.price || 0), 0);
   const boughtTot = bought.reduce((s, w) => s + (w.price || 0), 0);
+  const bal = total();
+  const cover = plannedTot > 0 ? Math.min(1, Math.max(0, bal / plannedTot)) : 0;
 
   const currentList = wishFilterTab === 'planned' ? planned : bought;
   const unrated = bought.filter(w => !w.rating).length;
 
   const headerHtml = (page !== tab) ? pageHead('Xaridlar rejasi', tab || 'settings') : `<div class="top"><div><div class="kicker">${planned.length} ta reja</div><h1>Rejalar</h1></div></div>`;
   let html = headerHtml + rateBanner() +
-    `<div class="card" style="margin-bottom:10px">
-      <div class="between">
-        <div>
-          <div class="muted" style="font-size:12px">Rejadagi jami summa</div>
-          <div class="v mono" style="color:var(--accent);font-size:22px;font-weight:800;margin-top:2px">${fmt(plannedTot)}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="muted" style="font-size:12px">Bajarilgan xaridlar</div>
-          <div class="v mono" style="color:var(--income);font-size:16px;font-weight:700;margin-top:2px">${fmt(boughtTot)}</div>
-        </div>
-      </div>
-      <div class="grid2" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--sep);font-size:12px">
-        <div>🛍️ Rejada: <b>${planned.length} ta</b></div>
-        <div>✓ Olingan: <b>${bought.length} ta</b></div>
-      </div>
+    `<div class="card">
+      <div class="muted" style="font-size:12.5px;font-weight:600">Rejadagi xaridlar</div>
+      <div class="mono" style="font-size:26px;font-weight:800;letter-spacing:-.6px;margin-top:2px">${fmt(plannedTot)}</div>
+      ${plannedTot>0?`<div class="prog" style="height:10px;margin:12px 0 6px"><i style="width:${Math.round(cover*100)}%;background:${cover>=1?'var(--income)':'var(--accent)'}"></i></div>
+      <div class="between" style="font-size:12.5px"><span class="muted">Balans ${cover>=1?'hammasini qoplaydi':`${Math.round(cover*100)}% ini qoplaydi`}</span><span class="muted">Olingan: <b class="mono" style="color:var(--text)">${compact(boughtTot)}</b></span></div>`:''}
     </div>
-    <div class="seg" style="margin:10px 0 14px">
-      <button style="font-size:12.5px;padding:9px 4px" class="${wishFilterTab==='planned'?'on':''}" onclick="wishFilterTab='planned';render()">🛍️ Rejada (${planned.length})</button>
-      <button style="font-size:12.5px;padding:9px 4px" class="${wishFilterTab==='bought'?'on':''}" onclick="wishFilterTab='bought';render()">✓ Olingan (${bought.length})</button>
-      <button style="font-size:12.5px;padding:9px 4px" class="${wishFilterTab==='rate'?'on':''}" onclick="wishFilterTab='rate';render()">⭐ Baholash${unrated?` <b style="color:var(--expense)">(${unrated})</b>`:''}</button>
+    <div class="seg">
+      <button class="${wishFilterTab==='planned'?'on':''}" onclick="wishFilterTab='planned';render()">Rejada · ${planned.length}</button>
+      <button class="${wishFilterTab==='bought'?'on':''}" onclick="wishFilterTab='bought';render()">Olingan · ${bought.length}</button>
+      <button class="${wishFilterTab==='rate'?'on':''}" onclick="wishFilterTab='rate';render()">Baholash${unrated?` <b style="color:var(--expense)">${unrated}</b>`:''}</button>
     </div>`;
 
   if(wishFilterTab==='rate'){
@@ -1899,49 +2020,43 @@ function viewWishlist(){
   }
 
   if(!currentList.length){
-    html += emptyBig('🛍️', wishFilterTab==='planned'?'Rejalar yoʻq':'Olinganlar yoʻq', wishFilterTab==='planned'?'Olishni rejalashtirgan buyumlaringizni qoʻshing':'Hali sotib olingan buyumlar mavjud emas');
+    html += emptyBig('🛍️', wishFilterTab==='planned'?'Rejalar yoʻq':'Olinganlar yoʻq', wishFilterTab==='planned'?'Olishni rejalashtirgan buyumlaringizni qoʻshing — sanasidan bir kun oldin bot eslatadi':'Hali sotib olingan buyumlar mavjud emas');
   } else {
     html += currentList.map(w => {
       const isBought = w.status === 'bought';
       const cat = wishCatBy(w.cat);
-      const prColor = w.priority === 'high' ? 'var(--expense)' : (w.priority === 'low' ? 'var(--text2)' : 'var(--warn)');
-      const prText = w.priority === 'high' ? '⭐⭐⭐ Yuqori' : (w.priority === 'low' ? '⭐ Oddiy' : '⭐⭐ Oʻrta');
-
-      return `<div class="card" style="padding:14px">
-        ${w.image ? `
-          <div style="width:100%;height:160px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:var(--sep);position:relative">
+      const pr = w.priority === 'high' ? ['Muhim','var(--expense)'] : (w.priority === 'low' ? ['Oddiy','var(--text2)'] : ['Oʻrta','var(--warn)']);
+      return `<div class="card" style="padding:0;overflow:hidden">
+        ${w.image ? `<div style="height:170px;background:var(--sep);position:relative">
             <img src="${w.image}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.parentElement.style.display='none';" style="width:100%;height:100%;object-fit:cover;display:block" alt="${esc(w.title)}">
-          </div>
-        ` : ''}
-        <div class="between" style="align-items:flex-start;margin-bottom:6px">
-          <div>
-            <div style="font-weight:700;font-size:16px">${esc(w.title)}</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
-              <span class="chip" style="font-size:11px;padding:2px 8px;background:${cat.c}22;color:${cat.c};border:none">${cat.e} ${esc(w.cat || 'Xarid')}</span>
-              <span class="chip" style="font-size:11px;padding:2px 8px;border:none;background:var(--sep);color:${prColor}">${prText}</span>
-              ${wishDueChip(w)}
+            <span class="tag" style="position:absolute;left:12px;top:12px;background:rgba(0,0,0,.55);color:#fff;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">${cat.e} ${esc(w.cat||'Xarid')}</span>
+          </div>` : ''}
+        <div style="padding:14px 16px 16px">
+          <div class="between" style="align-items:flex-start">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:16px">${esc(w.title)}</div>
+              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                ${w.image?'':`<span class="tag" style="background:${cat.c}22;color:${cat.c}">${cat.e} ${esc(w.cat||'Xarid')}</span>`}
+                <span class="tag"><i style="width:7px;height:7px;border-radius:50%;background:${pr[1]};display:inline-block"></i>${pr[0]}</span>
+                ${wishDueChip(w).replace('class="chip"','class="tag"')}
+              </div>
             </div>
+            <div class="mono" style="font-weight:800;font-size:17px;color:${isBought?'var(--income)':'var(--text)'}">${fmt(w.price)}</div>
           </div>
-          <div class="mono" style="font-weight:800;font-size:17px;color:${isBought?'var(--income)':'var(--accent)'}">${fmt(w.price)}</div>
-        </div>
-        ${w.note ? `<div style="font-size:12px;color:var(--text2);margin:6px 0">${esc(w.note)}</div>` : ''}
-        <div class="between" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--sep)">
-          ${!isBought ? `
-            <button class="chip on" style="background:var(--income);border:none;padding:6px 14px" onclick="markWishBought('${w.id}')">✓ Sotib oldim</button>
-          ` : `
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;color:var(--income);font-weight:600">✓ Olingan</span>
-              <span onclick="openRateTab()" style="font-size:12px;cursor:pointer;color:${w.rating?'var(--warn)':'var(--text2)'}">${w.rating?'⭐'.repeat(w.rating):'⭐ Baholash'}</span>
-              <button class="chip" style="font-size:11px;padding:3px 8px" onclick="markWishPlanned('${w.id}')">Rejaga qaytarish</button>
-            </div>
-          `}
-          <span class="link" onclick="openWishlist('${w.id}')" style="font-size:12px">Tahrirlash ›</span>
+          ${w.note ? `<div class="muted" style="font-size:12.5px;margin-top:8px">${esc(w.note)}</div>` : ''}
+          <div class="acts">
+            ${!isBought
+              ? `<button class="act pos" style="flex:1" onclick="markWishBought('${w.id}')">✓ Sotib oldim</button>`
+              : `<button class="act" style="flex:1;color:${w.rating?'var(--warn)':'var(--text)'}" onclick="openRateTab()">${w.rating?'⭐'.repeat(w.rating):'⭐ Baholash'}</button>
+                 <button class="act" onclick="markWishPlanned('${w.id}')">Qaytarish</button>`}
+            <button class="act ic" onclick="openWishlist('${w.id}')" aria-label="Tahrirlash"><span style="font-size:15px">✏️</span></button>
+          </div>
         </div>
       </div>`;
     }).join('');
   }
 
-  html += `<div style="height:64px"></div><button class="btn btn-fix" onclick="openWishlist()">+ Yangi reja qoʻshish</button>`;
+  html += `<div style="height:64px"></div><button class="btn btn-fix" onclick="openWishlist()">+ Yangi reja</button>`;
   return html;
 }
 // ============ BYUDJETLAR ============
@@ -1949,51 +2064,54 @@ function budgetSpent(b){const st=pStart(b.period).getTime();const set=new Set(b.
   return state.tx.filter(t=>t.type==='expense'&&new Date(t.date).getTime()>=st&&(set.size===0||set.has(t.cat))).reduce((s,t)=>s+t.amount,0);}
 function viewBudgets(){
   let html=pageHead('Byudjetlar','settings');
-  if(!state.budgets.length)html+=emptyBig('📊','Byudjet yoʼq','Sarfni nazorat qilish uchun byudjet tuzing');
+  if(!state.budgets.length)html+=emptyBig('📊','Byudjet yoʻq','Oylik byudjet qoʻysangiz, ilova va bot har kuni qancha sarflash mumkinligini aytadi');
   html+=state.budgets.map(b=>{const sp=budgetSpent(b);const p=b.limit>0?sp/b.limit:0;const over=sp>b.limit;
-    return `<div class="card" onclick="openBudget('${b.id}')"><div class="between"><h2>${esc(b.name)}</h2><span class="muted" style="font-size:13px">${{weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[b.period]}</span></div>
-      <div class="prog"><i style="width:${Math.min(p*100,100)}%;background:${over?'var(--expense)':b.color||'var(--warn)'}"></i></div>
-      <div class="between" style="font-size:13px"><span style="color:var(--expense)">${compact(sp)}</span><span class="muted">${compact(b.limit)}</span></div>
-      ${over?`<div style="color:var(--expense);font-size:13px;font-weight:600;margin-top:6px">⚠️ Byudjetdan ${compact(sp-b.limit)} oshdi</div>`:''}</div>`;}).join('');
-  html+=`<button class="btn" onclick="openBudget()">+ Byudjet qoʼshish</button>`;return html;}
+    const col=over?'var(--expense)':p>=.8?'var(--warn)':(b.color||'var(--accent)');
+    const cats=(b.catIds||[]).length?(b.catIds.slice(0,4).map(n=>catBy(n,'expense').e).join(' ')+(b.catIds.length>4?' …':'')):'Barcha xarajatlar';
+    return `<div class="card" onclick="openBudget('${b.id}')" style="cursor:pointer">
+      <div class="between"><div><h2>${esc(b.name)}</h2><div class="muted" style="font-size:12.5px;margin-top:3px">${{weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[b.period]} · ${cats}</div></div>
+        <span class="tag" style="color:${col}">${Math.round(p*100)}%</span></div>
+      <div class="mono" style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-top:12px;color:${over?'var(--expense)':'var(--text)'}">${over?'−'+fmt(sp-b.limit):fmt(b.limit-sp)}</div>
+      <div class="muted" style="font-size:12px">${over?'limitdan oshdi':'qoldi'}</div>
+      <div class="prog" style="height:10px;margin-top:12px"><i style="width:${Math.min(p*100,100)}%;background:${col}"></i></div>
+      <div class="between muted mono" style="font-size:12px"><span>${compact(sp)} sarflandi</span><span>${compact(b.limit)}</span></div></div>`;}).join('');
+  html+=`<button class="btn" onclick="openBudget()">+ Byudjet qoʻshish</button>`;return html;}
 // ============ MAQSADLAR ============
 function viewGoals(){
   let html=pageHead('Maqsadlar','settings');
-  if(!state.goals.length)html+=emptyBig('🎯','Maqsad yoʼq','Sayohat, mashina yoki texnika uchun jamgʼarma boshlang');
-  html+=`<div class="grid2">`+state.goals.map(g=>{const p=g.target>0?Math.min(g.current/g.target,1):0;
-    return `<div class="card" style="text-align:center"><div onclick="openGoal('${g.id}')">${ring(p,g.color||'#5856d6',g.e)}
-      <div style="font-weight:700;margin-top:6px">${esc(g.name)}</div>
-      <div class="muted" style="font-size:12px">${compact(g.current)} / ${compact(g.target)}</div></div>
-      <button class="chip on" style="margin-top:8px;background:${g.color||'#5856d6'};border:none" onclick="openContribute('${g.id}')">+ Qoʼshish</button>
-      ${g.current>=g.target&&g.target>0?'<div style="color:var(--income);font-size:12px;font-weight:700;margin-top:6px">✓ Bajarildi!</div>':''}</div>`;}).join('')+`</div>`;
-  html+=`<button class="btn" onclick="openGoal()">+ Maqsad qoʼshish</button>`;return html;}
+  if(!state.goals.length)html+=emptyBig('🎯','Maqsad yoʻq','Sayohat, mashina yoki texnika uchun jamgʻarma boshlang');
+  html+=`<div class="grid2">`+state.goals.map(g=>{const p=g.target>0?Math.min(g.current/g.target,1):0;const col=g.color||'#8b5cf6';
+    return `<div class="card" style="text-align:center"><div onclick="openGoal('${g.id}')" style="cursor:pointer">${ring(p,col,g.e)}
+      <div style="font-weight:700;margin-top:8px">${esc(g.name)}</div>
+      <div class="muted mono" style="font-size:12px;margin-top:2px">${compact(g.current)} / ${compact(g.target)}</div></div>
+      ${g.current>=g.target&&g.target>0?'<div style="color:var(--income);font-size:13px;font-weight:700;margin-top:10px">✓ Bajarildi</div>'
+        :`<button class="act" style="margin-top:10px;width:100%;background:${col}22;color:${col}" onclick="openContribute('${g.id}')">+ Qoʻshish</button>`}</div>`;}).join('')+`</div>`;
+  html+=`<button class="btn" onclick="openGoal()">+ Maqsad qoʻshish</button>`;return html;}
 function ring(p,col,emoji){const R=34,C=2*Math.PI*R;const len=p*C;
-  return `<svg viewBox="0 0 80 80" width="90" height="90" style="display:block;margin:0 auto"><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}22" stroke-width="8"/><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" transform="rotate(-90 40 40)"/><text x="40" y="46" text-anchor="middle" font-size="18">${emoji||''}</text></svg>`;}
+  return `<svg viewBox="0 0 80 80" width="92" height="92" style="display:block;margin:0 auto"><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}22" stroke-width="8"/><circle r="${R}" cx="40" cy="40" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${len} ${C-len}" transform="rotate(-90 40 40)"/><text x="40" y="38" text-anchor="middle" font-size="17">${emoji||''}</text><text x="40" y="54" text-anchor="middle" font-size="10" font-weight="800" fill="var(--text2)" font-family="inherit">${Math.round(p*100)}%</text></svg>`;}
 // ============ TAKRORLANUVCHI ============
 function viewRecurring(){
   let html = pageHead('Takrorlanuvchi toʻlovlar', 'settings');
-  const list = state.recurring || [];
+  const list = (state.recurring || []).slice().sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
   if(!list.length){
-    html += emptyBig('🔄', 'Toʻlovlar yoʻq', 'Maosh, ijara, obuna yoki kredit toʻlovlarini avtomatlashtiring');
+    html += emptyBig('🔄', 'Toʻlovlar yoʻq', 'Maosh, ijara, obuna yoki kredit toʻlovlarini qoʻshing — muddati yaqinlashganda bot ertalab eslatadi');
   } else {
-    html += list.map(r => {
+    const monthlyCost=list.filter(r=>r.type==='expense'&&r.active!==false).reduce((s,r)=>s+r.amount*({daily:30,weekly:4.33,monthly:1,yearly:1/12}[r.period]||1),0);
+    html += `<div class="card between"><span class="muted" style="font-weight:600">Oyiga taxminan</span><b class="mono" style="font-size:18px">−${fmt(monthlyCost)}</b></div>`;
+    html += `<div class="group">` + list.map(r => {
       const c = catBy(r.cat, r.type);
       const isExp = r.type === 'expense';
-      const periodName = {daily:'Kunlik',weekly:'Haftalik',monthly:'Oylik',yearly:'Yillik'}[r.period] || r.period;
-      const acc = accBy(r.accountId);
-      return `<div class="card" onclick="openRecurring('${r.id}')" style="cursor:pointer">
-        <div class="listrow" style="border:none;padding:0">
-          <div class="cic" style="background:${c.c}22">${c.e}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:15px">${esc(r.title)}</div>
-            <div class="meta muted" style="font-size:12px;margin-top:2px">${periodName} · Keyingi: <b>${fmtD(r.nextDue)}</b> (${acc.name})</div>
-          </div>
-          <b class="mono" style="color:${isExp?'var(--expense)':'var(--income)'};font-size:15px">${isExp?'−':'+'}${fmt(r.amount)}</b>
-        </div>
-      </div>`;
-    }).join('');
+      const periodName = {daily:'Har kuni',weekly:'Har hafta',monthly:'Har oy',yearly:'Har yil'}[r.period] || r.period;
+      const dd = daysUntil(toDateInput(r.nextDue));
+      const when = dd===0?'bugun':dd===1?'ertaga':dd<0?'kechikdi':fmtD(r.nextDue,{day:'numeric',month:'long'});
+      return `<div class="item" onclick="openRecurring('${r.id}')">
+          <div class="cic" style="width:38px;height:38px;border-radius:12px;font-size:18px;background:${c.c}22">${c.e}</div>
+          <div class="tt">${esc(r.title)}<small>${periodName} · <span style="color:${dd!==null&&dd<=1?'var(--warn)':'inherit'}">${when}</span></small></div>
+          <div class="tr mono" style="font-weight:700;color:${isExp?'var(--text)':'var(--income)'}">${isExp?'−':'+'}${fmt(r.amount)}</div>
+        </div>`;
+    }).join('') + `</div>`;
   }
-  html += `<button class="btn" onclick="openRecurring()">+ Yangi toʻlov qoʻshish</button>`;
+  html += `<button class="btn" onclick="openRecurring()">+ Yangi toʻlov</button>`;
   return html;
 }
 // ============ KALENDAR ============
@@ -2357,8 +2475,8 @@ let catTab='expense';
 function viewCategories(){
   return pageHead('Kategoriyalar','settings')+
    `<div class="seg"><button class="${catTab==='expense'?'on':''}" onclick="catTab='expense';render()">Xarajat</button><button class="${catTab==='income'?'on':''}" onclick="catTab='income';render()">Daromad</button></div>
-    <div class="card"><div class="cats" style="flex-wrap:wrap;overflow:visible">${cats(catTab).map((c,i)=>`<div class="catbtn on" style="width:74px" onclick="openCategory(${state.cats.indexOf(c)})"><div class="cic" style="width:52px;height:52px;background:${c.c}22">${c.e}</div><div class="lbl">${c.n}</div></div>`).join('')}</div></div>
-    <button class="btn" onclick="openCategory()">+ Kategoriya qoʼshish</button>`;}
+    <div class="card" style="padding:10px"><div class="tiles">${cats(catTab).map(c=>`<div class="t" onclick="openCategory(${state.cats.indexOf(c)})"><div class="cic" style="width:50px;height:50px;border-radius:16px;font-size:23px;background:${c.c}22">${c.e}</div>${esc(c.n)}</div>`).join('')}
+      <div class="t" onclick="openCategory()" style="color:var(--accent)"><div class="cic" style="width:50px;height:50px;border-radius:16px;background:var(--accent-soft)"><span style="width:22px;height:22px;display:flex">${icon('plus',2.4)}</span></div>Yangi</div></div></div>`;}
 // ============ SOZLAMALAR ============
 /** Guruhlangan ro'yxat qatori. `go` - sahifa nomi yoki onclick ifodasi. */
 function sItem(ic,col,title,sub,go,trail){
