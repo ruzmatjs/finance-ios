@@ -17,9 +17,9 @@ Botga shunchaki yozib yuborasiz:
 
 | Yozasiz | Natija |
 |---|---|
-| `ovqat 25k` | Ovqat · −25 000 · Naqd |
+| `ovqat 25k` | Ovqat · −25 000 |
 | `25 ming taksi` | Transport · −25 000 |
-| `benzin 120k karta` | Yoqilgʼi · −120 000 · Bank karta |
+| `benzin 120k` | Yoqilgʼi · −120 000 |
 | `+5mln maosh` | Maosh · +5 000 000 |
 | `onamga 200k` | Uydagilar · −200 000 |
 | `qarz 500k Jasur` | Qarz · −500 000 · izoh: Jasur |
@@ -27,7 +27,7 @@ Botga shunchaki yozib yuborasiz:
 
 **Summa:** `25000` · `25k` · `25 ming` · `1.5mln` · `2m`
 **Daromad:** oldiga `+` qoʻyiladi, yoki kategoriya oʻzi daromad boʻlsa (`maosh`) avtomatik.
-**Hisob:** matnda `karta` / `naqd` yoki hisob nomi boʻlsa shunisi, aks holda birinchi hisob.
+**Hisob yoʻq:** hamma narsa bitta umumiy pul balansiga yoziladi. Odat boʻyicha yozilgan `karta` / `naqd` soʻzlari eʼtiborsiz qoldiriladi (izohga tushmaydi).
 **Soʻz tartibi** muhim emas, **qoʻshimchalar** tushuniladi (`ovqatga`, `taksiga`, `maoshim`).
 
 Kalit soʻzlar jadvali (`KW`) `docs/index.html` dagisi bilan bir xil — bot va ilova
@@ -40,7 +40,7 @@ Har bir yozuvdan keyin ikki tugma chiqadi: **✏️ Kategoriya** (oʻzgartirish)
 
 | Buyruq | Vazifasi |
 |---|---|
-| `/balans` | Hisoblar boʻyicha qoldiq va jami |
+| `/balans` | Umumiy qoldiq |
 | `/oy` | Shu oy jamlanmasi (1-sanani kutmasdan) |
 | `/hisobot` | Shu oy hisobotini yuborish |
 | `/bugun` | Kunning rejasi (ertalabki xabarning oʻzi) |

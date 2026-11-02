@@ -124,7 +124,7 @@ console.log('\n— Qolgan buyruqlar —');
 for (const [cmd, expect] of [
   ['/start', 'FinanceApp boti'],
   ['/help', 'Buyruqlar'],
-  ['/balans', 'Hisoblar'],
+  ['/balans', 'Balans:'],
   ['/oy', 'oylik hisobot'],
   ['/bekor', 'yoʻq'],
 ]) {

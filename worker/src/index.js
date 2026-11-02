@@ -390,20 +390,16 @@ function matchCat(words, cats) {
   return null;
 }
 
-/** Matndagi so'zlardan hisobni aniqlaydi (yo'q bo'lsa birinchi hisob). */
+/**
+ * Hisob tanlanmaydi - hammasi bitta "Pul" balansiga yoziladi (birinchi hisob).
+ * Odat bo'yicha yozilgan "karta"/"naqd" so'zlari izohga tushmasligi uchun tashlab yuboriladi.
+ */
+const PAY_WORDS = new Set(['karta', 'kartadan', 'kartaga', 'card', 'plastik', 'naqd', 'naqdga', 'cash', 'uzcard', 'humo']);
 function matchAccount(words, accounts) {
   const list = (accounts && accounts.length) ? accounts : FALLBACK_ACCOUNTS;
-  for (let i = 0; i < words.length; i++) {
-    const w = norm(words[i]);
-    if (!w || w.length < 3) continue;
-    const hit = list.find((a) => a && a.name && (norm(a.name) === w || norm(a.name).startsWith(w)));
-    if (hit) return { acc: hit, wordIndex: i };
-    if (w === 'karta' || w === 'card' || w === 'plastik') {
-      const card = list.find((a) => norm(a.name).includes('karta') || norm(a.name).includes('card'));
-      if (card) return { acc: card, wordIndex: i };
-    }
-  }
-  return { acc: list[0], wordIndex: -1 };
+  const drop = [];
+  words.forEach((w, i) => { if (PAY_WORDS.has(norm(w))) drop.push(i); });
+  return { acc: list[0], drop };
 }
 
 /**
@@ -446,7 +442,7 @@ function parseEntry(text, st) {
   const used = new Set();
   if (found) used.add(found.wordIndex);
   const accPick = matchAccount(rest, st && st.accounts);
-  if (accPick.wordIndex >= 0) used.add(accPick.wordIndex);
+  accPick.drop.forEach((i) => used.add(i));
 
   const note = rest.filter((_, i) => !used.has(i)).join(' ').trim();
 
@@ -684,7 +680,7 @@ const HELP = [
   'Xarajatni shunchaki yozib yuboring:',
   '• <code>ovqat 25k</code>',
   '• <code>25 ming taksi</code>',
-  '• <code>benzin 120k karta</code>',
+  '• <code>benzin 120k</code>',
   '• <code>+5mln maosh</code> — daromad',
   '',
   '<b>Summa:</b> <code>25000</code> · <code>25k</code> · <code>25 ming</code> · <code>1.5mln</code>',
@@ -693,7 +689,7 @@ const HELP = [
   '',
   '<b>Buyruqlar</b>',
   '/bugun — kunning rejasi',
-  '/balans — hisoblar bo‘yicha qoldiq',
+  '/balans — umumiy qoldiq',
   '/oy — shu oy jamlanmasi',
   '/hisobot — oylik hisobotni yuborish',
   '/bekor — oxirgi kiritilganni o‘chirish',
@@ -706,14 +702,12 @@ const NO_STATE = 'Maʼlumot yoʻq — Mini App’ni bir marta ochib sinxronlasht
 
 /** Saqlangandan keyingi tasdiq xabari. */
 function entryText(tx, rec, cur) {
-  const acc = accountsOf(rec).find((a) => a.id === tx.accountId);
   const sign = tx.type === 'income' ? '+' : '−';
   const icon = tx.type === 'income' ? '💰' : '💸';
   const lines = [
     icon + ' <b>' + esc(tx.cat) + '</b>  ' + sign + fmtNum(tx.amount) + ' ' + cur,
   ];
   if (tx.note) lines.push('📝 ' + esc(tx.note));
-  lines.push('🏦 ' + esc((acc && ((acc.e ? acc.e + ' ' : '') + acc.name)) || tx.accountId));
   lines.push('', '💵 Qoldiq: <b>' + fmtNum(totalBalance(rec)) + ' ' + cur + '</b>');
   return lines.join('\n');
 }
@@ -792,11 +786,7 @@ async function handleMessage(env, msg) {
         return sendMessage(token, chatId, NO_STATE,
           { reply_markup: miniAppKb(env.MINIAPP_URL) });
       }
-      const lines = ['💵 <b>Hisoblar</b>', ''];
-      for (const a of accountsOf(rec)) {
-        lines.push((a.e ? a.e + ' ' : '') + esc(a.name) + ': <b>' + fmtNum(accountBalance(rec, a.id)) + ' ' + cur + '</b>');
-      }
-      lines.push('', '<b>Jami: ' + fmtNum(totalBalance(rec)) + ' ' + cur + '</b>');
+      const lines = ['💵 <b>Balans: ' + fmtNum(totalBalance(rec)) + ' ' + cur + '</b>'];
       return sendMessage(token, chatId, lines.join('\n'), { reply_markup: miniAppKb(env.MINIAPP_URL) });
     }
 
@@ -922,7 +912,7 @@ const json = (obj, status) => new Response(JSON.stringify(obj), {
 /** Telegram menyusida ko'rinadigan buyruqlar. */
 const BOT_COMMANDS = [
   { command: 'bugun', description: 'Kunning rejasi' },
-  { command: 'balans', description: 'Hisoblar boʻyicha qoldiq' },
+  { command: 'balans', description: 'Umumiy qoldiq' },
   { command: 'oy', description: 'Shu oy jamlanmasi' },
   { command: 'hisobot', description: 'Oylik hisobotni yuborish' },
   { command: 'bekor', description: 'Oxirgi kiritilganni oʻchirish' },

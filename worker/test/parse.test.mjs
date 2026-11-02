@@ -68,9 +68,9 @@ expectParse('kiyimga 300k', { cat: 'Xarid' });
 expectParse('maoshim 5mln', { cat: 'Maosh', type: 'income' });
 
 console.log('\n— Hisob va izoh —');
-expectParse('benzin 120k karta', { accountId: 'card', cat: 'Yoqilgʼi' });
+expectParse('benzin 120k karta', { accountId: 'cash', cat: 'Yoqilgʼi', note: '' });
 expectParse('ovqat 25k', { accountId: 'cash' });
-expectParse('ovqat 25k naqd', { accountId: 'cash' });
+expectParse('ovqat 25k naqd', { accountId: 'cash', note: '' });
 expectParse('qarz 500k Jasur', { cat: 'Qarz', note: 'Jasur' });
 
 console.log('\n— Rad etilishi kerak —');

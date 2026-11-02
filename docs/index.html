@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Har gal docs/index.html o'zgarganda shu sanani yangilang: ilova eski kesh ochilganini shundan biladi -->
-<meta name="app-version" content="2026-11-02b">
+<meta name="app-version" content="2026-11-02c">
 <title>Finance — Shaxsiy moliya</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -277,17 +277,6 @@
   .insight{display:flex;align-items:center;gap:14px}
   .insight .big{font-size:24px;font-weight:800;letter-spacing:-.6px;margin-top:2px}
   .insight .sub{font-size:12.5px;color:var(--text2);margin-top:3px;line-height:1.4}
-
-  /* Hisob plitkalari */
-  .acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-  .acc-tile{position:relative;overflow:hidden;border-radius:20px;padding:14px;min-height:120px;color:#fff;display:flex;flex-direction:column;
-            justify-content:space-between;cursor:pointer;box-shadow:var(--shadow);touch-action:manipulation}
-  .acc-tile::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.16)}
-  .acc-tile .e{font-size:22px;width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center}
-  .acc-tile .n{font-size:13px;font-weight:600;opacity:.9;margin-top:10px}
-  .acc-tile .v{font-size:17px;font-weight:800;letter-spacing:-.3px}
-  .acc-tile.add{background:transparent;color:var(--text2);border:1.5px dashed var(--text3);box-shadow:none;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:14px}
-  .acc-tile.add::after{display:none}
 
   /* Avatar (qarzlar) */
   .ava{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;color:#fff}
@@ -1278,7 +1267,7 @@ function render(keepScroll=true){
 
   const el=document.getElementById('app');
   const v={home:viewHome,list:viewList,report:viewReport,settings:viewSettings,
-    accounts:viewAccounts,debts:viewDebts,wishlist:viewWishlist,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,compare:viewCompare,categories:viewCategories}[page];
+    debts:viewDebts,wishlist:viewWishlist,budgets:viewBudgets,goals:viewGoals,recurring:viewRecurring,calendar:viewCalendar,stats:viewStats,compare:viewCompare,categories:viewCategories}[page];
   // Ko'rinish xato bersa innerHTML umuman yozilmasdi va ekran o'zgarmay qolardi -
   // "tugma ishlamayapti" ko'rinishini berardi. Endi xato ekranda ko'rsatiladi.
   let out;
@@ -1443,7 +1432,7 @@ function viewHome(){
       <button class="iconbtn" onclick="go('settings')" aria-label="Sozlamalar">${icon('grid')}</button>
     </div>
     <div class="hero ${total()<0?'danger':''}">
-      <div class="between"><div class="lbl">Umumiy balans</div>
+      <div class="between"><div class="lbl">Pul</div>
         <button class="eye" onclick="toggleHideBalance()" aria-label="Summalarni yashirish">${icon(state.hideBalance?'eyeoff':'eye',2.2)}</button></div>
       <div class="amt mono" id="heroAmt">${fmt(total())}</div>
       ${todayBadge}
@@ -1456,14 +1445,13 @@ function viewHome(){
     <div class="quick">
       ${q("openTxType('expense')",'minus','Xarajat','var(--expense)')}
       ${q("openTxType('income')",'plus','Daromad','var(--income)')}
-      ${q("openTxType('transfer')",'swap','Oʻtkazma','var(--transfer)')}
+      ${q("openWishlist()",'bag','Reja','var(--accent)')}
       ${q("openDebt()",'hand','Qarz','var(--warn)')}
     </div>
     ${dailyInsight()}
     ${rateBanner()}
     ${secHead('Soʻnggi 7 kun','Tarix ›','list')}
     ${weeklyChart()}
-    ${secHead('Hisoblar','Boshqarish','accounts')}${accTiles(false)}
     ${budgetBlock}
     ${debtsBlock}
     ${upBlock}`;
@@ -1476,7 +1464,7 @@ let chartData = [];
 
 function chartDayTxHtml(dayDate){
   if(!dayDate) return '';
-  const dayTxs = state.tx.filter(t => sameDay(t.date, dayDate)).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const dayTxs = state.tx.filter(t => t.type!=='transfer' && sameDay(t.date, dayDate)).sort((a,b) => new Date(b.date) - new Date(a.date));
   if (!dayTxs.length) {
     return `<div class="muted" style="text-align:center;font-size:13px;padding:14px 0 6px">Bu kuni yozuv yoʻq</div>`;
   }
@@ -1557,7 +1545,7 @@ function budgetMini(b){const sp=budgetSpent(b);const p=b.limit>0?sp/b.limit:0;co
 // ============ TRANZAKSIYALAR ============
 let flt={q:'',type:'',sort:'dateDesc'};
 function fltList(){
-  let list=[...state.tx];
+  let list=state.tx.filter(t=>t.type!=='transfer');
   if(flt.type)list=list.filter(t=>t.type===flt.type);
   if(flt.q){const q=flt.q.toLowerCase();list=list.filter(t=>((t.merchant||'')+' '+(t.cat||'')+' '+(t.note||'')+' '+t.amount).toLowerCase().includes(q));}
   list.sort((a,b)=> flt.sort==='dateAsc'?new Date(a.date)-new Date(b.date): flt.sort==='amtDesc'?b.amount-a.amount: flt.sort==='amtAsc'?a.amount-b.amount: new Date(b.date)-new Date(a.date));
@@ -1572,7 +1560,7 @@ function viewList(){
     <div class="cats" id="fltchips" style="padding:2px 2px 6px;gap:6px">${fltChips()}</div>
     <div id="listbody" style="margin-top:8px">${listBody(fltList())}</div>`;
 }
-function fltChips(){const S=[['','Hammasi'],['expense','Xarajat'],['income','Daromad'],['transfer','Oʻtkazma']];
+function fltChips(){const S=[['','Hammasi'],['expense','Xarajat'],['income','Daromad']];
   const O=[['dateDesc','Yangi'],['amtDesc','Katta summa'],['amtAsc','Kichik summa']];
   return S.map(x=>`<span class="chip ${flt.type===x[0]?'on':''}" style="flex-shrink:0" onclick="flt.type='${x[0]}';renderListBody();refreshChips()">${x[1]}</span>`).join('')
     +'<span style="flex:0 0 1px;background:var(--sep);margin:4px 2px"></span>'
@@ -1602,10 +1590,10 @@ function listBody(list){
 }
 function txTime(d){const x=parseSafeDate(d);return x?String(x.getHours()).padStart(2,'0')+':'+String(x.getMinutes()).padStart(2,'0'):'';}
 function txRow(t,withDate){const c=catBy(t.cat,t.type);const col=t.type==='income'?'var(--income)':t.type==='expense'?'var(--text)':'var(--transfer)';
-  const sign=t.type==='income'?'+':t.type==='expense'?'−':'';const acc=accBy(t.accountId);
-  const title = t.type==='transfer' ? `${acc.name} → ${accBy(t.toAccountId).name}` : (t.cat || t.merchant || 'Tranzaksiya');
+  const sign=t.type==='income'?'+':t.type==='expense'?'−':'';
+  const title = t.cat || t.merchant || 'Tranzaksiya';
   const when = withDate ? (sameDay(t.date,now())?'Bugun':fmtD(t.date)) : txTime(t.date);
-  const meta=[t.note?esc(t.note):'', t.type==='transfer'?'':esc(acc.name), when].filter(Boolean).join(' · ');
+  const meta=[t.note?esc(t.note):'', when].filter(Boolean).join(' · ');
   const bot=t.src==='bot'?`<span class="tag" style="padding:1px 5px;margin-right:4px;vertical-align:1px" title="Bot orqali">🤖</span>`:'';
   return `<div class="cic" style="background:${t.type==='transfer'?'var(--accent-soft)':c.c+'22'}">${t.type==='transfer'?'🔄':c.e}</div>
     <div style="flex:1;min-width:0"><div class="name">${esc(title)}${t.fav?' ⭐':''}</div>
@@ -1617,14 +1605,12 @@ function txRowClick(t,withDate){return `<div class="tx row" onclick="openTx('${t
 let reportType = 'expense'; // 'expense', 'income', 'all'
 let reportRange = 'month';  // 'day', 'week', 'month', 'year'
 let reportRefDate = new Date();
-let reportExcludeCash = false;
 let reportExcludeLarge = false;
 let reportLargeThreshold = 5000000;
 let reportSelectedCats = []; // empty means ALL categories
 
 function setReportType(t){ reportType=t; render(); haptic(); }
 function setReportRange(r){ reportRange=r; render(); haptic(); }
-function toggleReportCash(){ reportExcludeCash=!reportExcludeCash; render(); haptic(); }
 function toggleReportLarge(){ reportExcludeLarge=!reportExcludeLarge; render(); haptic(); }
 function setReportLargeThreshold(val){ reportLargeThreshold=Math.max(1000, Number(val)||5000000); render(); }
 function toggleReportCat(n){
@@ -1697,15 +1683,10 @@ function viewReport(){
     return time >= stMs && time <= enMs;
   });
 
-  let excludedCashCount = 0;
   let excludedLargeCount = 0;
 
   let filtered = allInPeriod.filter(t => {
-    if(reportExcludeCash){
-      const acc = accBy(t.accountId);
-      const isCash = t.accountId === 'cash' || (acc && acc.name && acc.name.toLowerCase().includes('naqd'));
-      if(isCash){ excludedCashCount++; return false; }
-    }
+    if(t.type === 'transfer') return false;
     if(reportExcludeLarge){
       if(t.amount >= reportLargeThreshold){ excludedLargeCount++; return false; }
     }
@@ -1796,8 +1777,8 @@ function viewReport(){
     } else if(expTot > incTot && incTot > 0){
       aiText += `⚠️ Xarajat daromaddan <b>${fmt(expTot - incTot)}</b> so'mga ko'p. Resurslarni tejash tavsiya etiladi.<br>`;
     }
-    if(excludedCashCount > 0 || excludedLargeCount > 0 || reportSelectedCats.length > 0){
-      aiText += `🔍 <i>Filtr: ${reportSelectedCats.length > 0 ? reportSelectedCats.length + ' ta kategoriya tanlangan, ' : ''}${excludedCashCount} ta naqd va ${excludedLargeCount} ta yirik operatsiya istisno qilindi.</i>`;
+    if(excludedLargeCount > 0 || reportSelectedCats.length > 0){
+      aiText += `🔍 <i>Filtr: ${reportSelectedCats.length > 0 ? reportSelectedCats.length + ' ta kategoriya tanlangan, ' : ''}${excludedLargeCount} ta yirik operatsiya istisno qilindi.</i>`;
     }
   }
 
@@ -1806,7 +1787,6 @@ function viewReport(){
       <h2>Xulosa va filtrlar</h2>
     </div>
     <div class="chips" style="margin-bottom:10px">
-      <span class="chip ${reportExcludeCash?'on':''}" onclick="toggleReportCash()">💵 Naqd pulsiz</span>
       <span class="chip ${reportExcludeLarge?'on':''}" onclick="toggleReportLarge()">⚡ Yirik bitimlarsiz</span>
     </div>
     ${reportExcludeLarge ? `<div style="margin-bottom:10px;font-size:12px;color:var(--text2)">Yirik summa chegarasi: <input type="number" value="${reportLargeThreshold}" onchange="setReportLargeThreshold(this.value)" style="width:130px;display:inline-block;padding:4px 8px;font-size:12px;margin-left:4px"> UZS</div>` : ''}
@@ -1856,28 +1836,6 @@ function donut(arr,tot){const R=52,C=2*Math.PI*R;let off=0;
   const segs=arr.map(x=>{const len=tot>0?(x.v/tot*C):0;const s=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${x.c}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;off+=len;return s;}).join('');
   return `<svg viewBox="0 0 140 140" width="160" height="160" style="display:block;margin:0 auto">${segs}<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--text2)">Jami</text><text x="70" y="84" text-anchor="middle" font-size="13" font-weight="800" fill="var(--text)">${compact(tot)}</text></svg>`;}
 
-// ============ HISOBLAR ============
-/** #rrggbb rangni qoraytirish/oqartirish (amt: -1..1). */
-function shade(hex,amt){
-  const m=String(hex||'').match(/^#?([0-9a-f]{6})$/i); if(!m) return hex||'#3e6bff';
-  const n=parseInt(m[1],16); const f=c=>Math.round(amt<0?c*(1+amt):c+(255-c)*amt);
-  return '#'+[n>>16&255,n>>8&255,n&255].map(c=>f(c).toString(16).padStart(2,'0')).join('');
-}
-function accTiles(manage){
-  const tiles=state.accounts.map(a=>{const b=accountBalance(a.id);
-    const act=manage?`onclick="openAccount('${a.id}')"`:`data-nav="accounts" onclick="nav('accounts')"`;
-    return `<div class="acc-tile" ${act} style="background:linear-gradient(145deg,${a.c},${shade(a.c,-.42)})">
-      <div class="e">${a.e}</div>
-      <div><div class="n">${esc(a.name)}</div><div class="v mono">${b<0?'−':''}${fmt(b)}</div></div></div>`;}).join('');
-  const add=`<div class="acc-tile add" onclick="openAccount()"><span style="width:20px;height:20px;display:flex">${icon('plus',2.4)}</span>Hisob qoʻshish</div>`;
-  return `<div class="acc-grid">${tiles}${manage||state.accounts.length%2?add:''}</div>`;
-}
-function viewAccounts(){
-  return pageHead('Hisoblar','settings')+
-    `<div class="card between"><span class="muted" style="font-weight:600">Umumiy balans</span><b class="mono" style="font-size:18px;color:${total()<0?'var(--expense)':'var(--text)'}">${fmt(total())}</b></div>`+
-    accTiles(true)+
-    `<div class="hint" style="text-align:center">Hisobni tahrirlash uchun ustiga bosing</div>`;
-}
 // ============ QARZLAR ============
 let debtFilterTab = 'lend'; // 'lend', 'borrow', 'settled'
 const AVA_COLORS=['#3e6bff','#8b5cf6','#ec4899','#f59e0b','#14b8a6','#ef4444','#0ea5e9','#22c55e'];
@@ -1920,7 +1878,6 @@ function viewDebts(){
         const dAmt = parseFloat(d.amount) || 0, dPaid = parseFloat(d.paid) || 0, remaining = rem(d);
         const isLend = d.type === 'lend';
         const isSettled = (d.status === 'settled') || (dPaid >= dAmt && dAmt > 0);
-        const acc = accBy(d.accountId);
         const prog = dAmt > 0 ? Math.min(100, Math.round((dPaid / dAmt) * 100)) : 0;
         const col = isLend ? 'var(--income)' : 'var(--expense)';
         const due = d.dueDate ? daysUntil(toDateInput(d.dueDate)) : null;
@@ -1930,7 +1887,7 @@ function viewDebts(){
             <div class="ava" style="background:${avaColor(d.person)}">${esc(initials(d.person))}</div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:15.5px">${esc(d.person || 'Shaxs (Qarz)')}</div>
-              <div class="muted" style="font-size:12.5px;margin-top:2px">${isLend?'Berildi':'Olindi'} ${fmtD(d.date)} · ${acc.e} ${esc(acc.name)}</div>
+              <div class="muted" style="font-size:12.5px;margin-top:2px">${isLend?'Berildi':'Olindi'} ${fmtD(d.date)}</div>
               ${dueTag?`<div style="margin-top:6px">${dueTag}</div>`:''}
             </div>
             <div style="text-align:right">
@@ -2126,7 +2083,7 @@ function viewCalendar(){
   const dayTx=t=>sameDay(t.date,calSel);
   const inc=state.tx.filter(t=>t.type==='income'&&dayTx(t)).reduce((s,t)=>s+t.amount,0);
   const exp=state.tx.filter(t=>t.type==='expense'&&dayTx(t)).reduce((s,t)=>s+t.amount,0);
-  const dt=state.tx.filter(dayTx).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const dt=state.tx.filter(t=>t.type!=='transfer'&&dayTx(t)).sort((a,b)=>new Date(b.date)-new Date(a.date));
   return pageHead('Kalendar','settings')+
     `<div class="card"><div class="between"><span class="link" onclick="calShift(-1)">‹</span>
       <b>${calMonth.toLocaleDateString('ru-RU',{month:'long',year:'numeric'})}</b>
@@ -2503,13 +2460,12 @@ function viewSettings(){
   </div>
   <div class="card flat" style="font-size:13px;line-height:1.55">
     Botga shunchaki yozing — yozuv shu yerga oʻzi tushadi:
-    <div class="chips" style="margin-top:8px">${['ovqat 25k','taksi 18 ming','+5mln maosh','benzin 120k karta'].map(x=>`<span class="tag mono" style="background:var(--card);color:var(--text)">${x}</span>`).join('')}</div>
+    <div class="chips" style="margin-top:8px">${['ovqat 25k','taksi 18 ming','+5mln maosh','benzin 120k'].map(x=>`<span class="tag mono" style="background:var(--card);color:var(--text)">${x}</span>`).join('')}</div>
     <div class="muted" style="font-size:12px;margin-top:8px">Buyruqlar: /bugun · /balans · /oy · /hisobot · /bekor</div>
   </div>
 
   ${secHead('Moliya')}
   <div class="group">
-    ${sItem('wallet','#3e6bff','Hisoblar',`${state.accounts.length} ta hisob`,'accounts')}
     ${sItem('hand','#f59e0b','Qarzlar',activeDebts?`${activeDebts} ta ochiq`:'Berilgan va olingan qarzlar','debts')}
     ${sItem('pie','#16a34a','Byudjetlar',state.budgets.length?`${state.budgets.length} ta byudjet`:'Sarf chegarasi','budgets')}
     ${sItem('target','#8b5cf6','Maqsadlar',state.goals.length?`${state.goals.length} ta maqsad`:'Jamgʻarma','goals')}
@@ -2664,29 +2620,25 @@ let form={};
 function openTx(id){const ex=id?state.tx.find(t=>t.id===id):null;
   form=ex?{...ex,edit:id}:{type:'expense',amount:'',cat:null,accountId:state.accounts[0].id,toAccountId:state.accounts[1]?.id,note:'',fav:false,date:new Date().toISOString()};
   openSheet(txSheet);haptic('medium');}
-function txSheet(){const isT=form.type==='transfer';
-  const col=form.type==='income'?'var(--income)':form.type==='expense'?'var(--expense)':'var(--transfer)';
-  const accOpts=sel=>state.accounts.map(a=>`<option value="${a.id}" ${sel===a.id?'selected':''}>${a.e} ${esc(a.name)}</option>`).join('');
+function txSheet(){
+  if(form.type==='transfer') form.type='expense';
+  const col=form.type==='income'?'var(--income)':'var(--expense)';
   return `${sheetHead(form.edit?'Tahrirlash':'Yangi yozuv')}
   <div class="seg"><button class="${form.type==='expense'?'on':''}" onclick="fType('expense')">Xarajat</button>
-    <button class="${form.type==='income'?'on':''}" onclick="fType('income')">Daromad</button>
-    <button class="${form.type==='transfer'?'on':''}" onclick="fType('transfer')">Oʻtkazma</button></div>
+    <button class="${form.type==='income'?'on':''}" onclick="fType('income')">Daromad</button></div>
   ${form.edit?'':`<div class="ai" style="display:flex;gap:6px;align-items:center;background:var(--card);border-radius:14px;padding:4px 4px 4px 12px">
-    <span style="font-size:15px">✨</span><input id="nl" placeholder="Tez kiritish: ovqat 25k karta" style="margin:0;background:none;border:none;padding:10px 4px;font-size:14.5px" onkeydown="if(event.key==='Enter')applyNL()">
+    <span style="font-size:15px">✨</span><input id="nl" placeholder="Tez kiritish: ovqat 25k" style="margin:0;background:none;border:none;padding:10px 4px;font-size:14.5px" onkeydown="if(event.key==='Enter')applyNL()">
     <button class="chip on" style="border:none;padding:8px 12px" onclick="applyNL()">OK</button></div>`}
   <div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin:6px 0 2px;color:${col}">
     <input class="amtinput" id="amt" inputmode="decimal" placeholder="0" value="${fmtNumInput(form.amount)}" oninput="formatAmtInput(this)" style="color:${col};width:auto;max-width:78%;flex:0 1 auto;padding:12px 0" size="${Math.max(1,fmtNumInput(form.amount).length)}">
     <span style="font-size:18px;font-weight:700;color:var(--text2)">${SYM[state.currency]||state.currency}</span>
   </div>
-  ${isT?`<div class="grid2" style="margin-bottom:0"><div><label class="fld">Qayerdan</label><select id="acc" onchange="form.accountId=this.value;saveFormInputs();">${accOpts(form.accountId)}</select></div>
-        <div><label class="fld">Qayerga</label><select id="toacc" onchange="form.toAccountId=this.value;saveFormInputs();">${accOpts(form.toAccountId)}</select></div></div>`
-   :`<label class="fld">Kategoriya</label><div class="cats">${cats(form.type).map(catBtn).join('')}</div>
-     <label class="fld">Hisob</label><div class="chips">${state.accounts.map(a=>`<span class="chip ${form.accountId===a.id?'on':''}" onclick="saveFormInputs();form.accountId='${a.id}';reSheet()">${a.e} ${esc(a.name)}</span>`).join('')}</div>`}
+  <label class="fld">Kategoriya</label><div class="cats">${cats(form.type).map(catBtn).join('')}</div>
   <div class="grid2" style="margin-bottom:0">
     <div><label class="fld">Sana va vaqt</label><input type="datetime-local" id="txdate" value="${toLocalInput(form.date)}" onchange="form.date=this.value?new Date(this.value).toISOString():form.date" style="font-size:14px"></div>
     <div><label class="fld">Izoh</label><input id="note" placeholder="Ixtiyoriy" value="${esc(form.note||'')}" oninput="form.note=this.value"></div>
   </div>
-  ${!isT?`<div class="chips" style="margin-top:12px"><span class="chip ${form.fav?'soft':''}" id="favb" onclick="form.fav=!form.fav;this.classList.toggle('soft',form.fav);this.textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span>${form.src==='bot'?'<span class="tag">🤖 Bot orqali kiritilgan</span>':''}</div>`:''}
+  ${`<div class="chips" style="margin-top:12px"><span class="chip ${form.fav?'soft':''}" id="favb" onclick="form.fav=!form.fav;this.classList.toggle('soft',form.fav);this.textContent=form.fav?'⭐ Sevimli':'☆ Sevimli'">${form.fav?'⭐ Sevimli':'☆ Sevimli'}</span>${form.src==='bot'?'<span class="tag">🤖 Bot orqali kiritilgan</span>':''}</div>`}
   <button class="btn" onclick="saveTx()">Saqlash</button>
   ${form.edit?`<button class="btn danger" onclick="delTx('${form.edit}')">Oʻchirish</button>`:''}`;}
 function saveFormInputs(){
@@ -2701,14 +2653,6 @@ function applyNL(){
   const v=document.getElementById('nl')?.value||'';
   const r=parseNL(v);if(!r)return;
   form.type=r.type;form.amount=String(Math.round(r.amount));if(r.cat)form.cat=r.cat;
-  const lower=v.toLowerCase();
-  if(lower.includes('karta')||lower.includes('card')){
-    const cardAcc=state.accounts.find(a=>a.id==='card'||a.name.toLowerCase().includes('karta')||a.name.toLowerCase().includes('card'));
-    if(cardAcc)form.accountId=cardAcc.id;
-  }else if(lower.includes('naqd')||lower.includes('cash')){
-    const cashAcc=state.accounts.find(a=>a.id==='cash'||a.name.toLowerCase().includes('naqd')||a.name.toLowerCase().includes('cash'));
-    if(cashAcc)form.accountId=cashAcc.id;
-  }
   openSheet(txSheet);notify('success');
 }
 function catBtn(c){const on=form.cat===c.n?'on':'';return `<div class="catbtn ${on}" onclick="pickCat('${c.n.replace(/'/g,"\\'")}')"><div class="cic" style="width:52px;height:52px;background:${c.c}22">${c.e}</div><div class="lbl">${c.n}</div></div>`;}
@@ -2730,9 +2674,9 @@ function saveTx(){
     if(aEl){aEl.style.outline='2px solid var(--expense)';aEl.focus();}
     return;
   }
-  const isT=form.type==='transfer';
-  const obj={type:form.type,amount:amt,cat:isT?null:(form.cat||'Boshqa'),accountId:form.accountId,
-    toAccountId:isT?form.toAccountId:null,merchant:isT?'Oʼtkazma':(form.cat||'Boshqa'),note:form.note||'',fav:!!form.fav,
+  // Hisob tanlanmaydi: yangi yozuv birinchi hisobga, tahrirda eskisi saqlanadi
+  const obj={type:form.type,amount:amt,cat:form.cat||'Boshqa',accountId:form.accountId||state.accounts[0].id,
+    toAccountId:null,merchant:form.cat||'Boshqa',note:form.note||'',fav:!!form.fav,
     date:form.date||new Date().toISOString()};
   if(form.edit){
     const t=state.tx.find(x=>x.id===form.edit);
@@ -2787,22 +2731,6 @@ function delTx(id){
   }
   save();closeSheet();notify('warning');render();}
 
-// ============ SHEET: Hisob ============
-function openAccount(id){const ex=id?accBy(id):null;
-  form=ex?{...ex,edit:id}:{name:'',e:'💼',c:'#34c759',opening:0};openSheet(accountSheet);}
-function accountSheet(){return `${sheetHead(`${form.edit?'Hisobni tahrirlash':'Yangi hisob'}`)}
-  <label class="fld">Nomi</label><input value="${esc(form.name)}" oninput="form.name=this.value" placeholder="Masalan: Naqd">
-  <label class="fld">Boshlangʼich balans</label><input inputmode="decimal" value="${form.opening||0}" oninput="form.opening=parseFloat(this.value)||0">
-  <label class="fld">Belgi</label>${emojiPick('e')}
-  <label class="fld">Rang</label>${colorPick('c')}
-  <button class="btn" onclick="saveAccount()">Saqlash</button>
-  ${form.edit&&state.accounts.length>1?`<button class="btn danger" onclick="delAccount('${form.edit}')">Oʼchirish</button>`:''}`;}
-function saveAccount(){if(!form.name.trim())return;
-  if(form.edit){const a=accBy(form.edit);a.name=form.name;a.e=form.e;a.c=form.c;a.opening=form.opening;}
-  else state.accounts.push({id:genId(),name:form.name,e:form.e,c:form.c,opening:form.opening});
-  save();closeSheet();render();}
-function delAccount(id){if(!confirm('Hisob oʼchirilsinmi?'))return;state.accounts=state.accounts.filter(a=>a.id!==id);save();closeSheet();render();}
-
 // ============ SHEET: Qarz (qoʼshish/tahrirlash) ============
 function openDebt(id){
   const ex = id ? state.debts.find(d => d.id === id) : null;
@@ -2840,8 +2768,6 @@ function debtSheet(){
   <label class="fld">${isLend ? 'Qarz berilgan sana' : 'Qarz olingan sana'}</label>
   <input type="date" id="ddate" value="${form.date || toDateInput()}" oninput="form.date=this.value">
 
-  <label class="fld">${isLend ? 'Qaysi hisobdan berildi' : 'Qaysi hisobga qabul qilindi'}</label>
-  <select id="dacc" onchange="form.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
   
   <label class="fld">Qaytarish muddati (Ixtiyoriy)</label>
   <input type="date" id="ddue" value="${form.dueDate||''}" oninput="form.dueDate=this.value">
@@ -2999,7 +2925,6 @@ function forwardDebtTelegram(id){
     const isSettled = (d.status === 'settled') || (dPaid >= dAmt && dAmt > 0);
     const dateStr = fmtD(d.date, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.date);
     const dueStr = d.dueDate ? (fmtD(d.dueDate, {day:'numeric', month:'long', year:'numeric'}) || fmtD(d.dueDate)) : null;
-    const acc = accBy(d.accountId);
 
     let msg = `🤝 Qarz maʼlumoti (Eslatma)\n\n`;
     msg += isLend ? `👤 Kimga (Qarz oluvchi): ${d.person || '—'}\n` : `👤 Kimdan (Qarz beruvchi): ${d.person || '—'}\n`;
@@ -3013,9 +2938,6 @@ function forwardDebtTelegram(id){
       msg += `⚖️ Qolgan qarz: ${fmtRaw(remaining)}\n`;
     }
     msg += `📌 Holati: ${isSettled ? '✅ Toʻliq yopilgan' : '⏳ Qaytarilishi kutilmoqda'}\n`;
-    if(acc && acc.name && acc.name !== '—') {
-      msg += `💼 Hisob: ${acc.name}\n`;
-    }
     if(d.note && d.note.trim()) {
       msg += `📝 Izoh: ${d.note.trim()}\n`;
     }
@@ -3099,8 +3021,6 @@ function repaySheet(){
   </div>
   <label class="fld">Qaytarilayotgan summa</label>
   <input class="amtinput" id="repayAmt" inputmode="decimal" value="${fmtNumInput(repayForm.amount)}" oninput="formatRepayAmtInput(this)">
-  <label class="fld">${isLend ? 'Qaysi hisobga qabul qilindi' : 'Qaysi hisobdan toʻlandi'}</label>
-  <select id="repayAcc" onchange="repayForm.accountId=this.value">${state.accounts.map(a=>`<option value="${a.id}" ${repayForm.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}</select>
   <button id="repayBtn" class="btn" style="background:${isLend ? 'var(--income)' : 'var(--expense)'}" onclick="saveRepay()">${btnText}</button>`;
 }
 
@@ -3545,10 +3465,6 @@ function recurringSheet(){
     ${currCats.map(c => `<option value="${c.n}" ${form.cat===c.n?'selected':''}>${c.e} ${c.n}</option>`).join('')}
   </select>
   
-  <label class="fld">${isExp ? 'Qaysi hisobdan yechiladi' : 'Qaysi hisobga tushadi'}</label>
-  <select id="racc" onchange="form.accountId=this.value">
-    ${state.accounts.map(a => `<option value="${a.id}" ${form.accountId===a.id?'selected':''}>${a.e} ${a.name}</option>`).join('')}
-  </select>
 
   <label class="fld">Boshlanish / Keyingi toʻlov sanasi</label>
   <input type="date" id="rdue" value="${dueDateVal}" oninput="form.nextDue=this.value">
@@ -3689,8 +3605,8 @@ document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='
 function setCur(c){state.currency=c;save();render();}
 function setTheme(t){state.theme=t;save();applyTheme();render();}
 function clearAll(){if(confirm('BARCHA maʼlumot oʼchiriladi. Davom etilsinmi?')){const cur=state.currency,th=state.theme;state={currency:cur,theme:th};ensure();save();render();}}
-function exportCSV(){let csv='Sana,Tur,Kategoriya,Hisob,Izoh,Summa\n';
-  state.tx.forEach(t=>{csv+=[fmtD(t.date,{day:'2-digit',month:'2-digit',year:'numeric'}),t.type,t.cat||'',accBy(t.accountId).name,(t.note||'').replace(/,/g,' '),signed(t)].join(',')+'\n';});
+function exportCSV(){let csv='Sana,Tur,Kategoriya,Izoh,Summa\n';
+  state.tx.forEach(t=>{csv+=[fmtD(t.date,{day:'2-digit',month:'2-digit',year:'numeric'}),t.type,t.cat||'',(t.note||'').replace(/,/g,' '),signed(t)].join(',')+'\n';});
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download='hisobot.csv';a.click();}
 
 // ---- Toʻliq zaxira (JSON): butun state, tiklash bilan ----
