@@ -1,31 +1,11 @@
 # macOS
 .DS_Store
 
-# Xcode / build natijalari
-build/
-DerivedData/
-*.xcodeproj
-*.xcworkspace
-xcuserdata/
-*.ipa
-Payload/
-
-# XcodeGen tomonidan generatsiya qilinadi (CI'da qayta yaratiladi)
-FinanceApp/Info.plist
-FinanceApp/*.entitlements
-FinanceWidget/Info.plist
-FinanceWidget/*.entitlements
-
-# Swift Package Manager
-.build/
-.swiftpm/
-
-# Muhit va maxfiy maʼlumotlar (Secrets & Environment)
+# Muhit va maxfiy maʼlumotlar
 .env
 .env.*
 !.env.example
 *.env
-*.xcconfig.local
 *.local
 
 # Worker (Cloudflare)
